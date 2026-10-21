@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+
+.env
+.env.*
+!.env.example
+
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+*.log
+.vscode/
