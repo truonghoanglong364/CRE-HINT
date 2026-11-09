@@ -44,23 +44,15 @@ function App() {
   const [hasAlert, setHasAlert] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('cre_hint_session')
-    if (!saved) return
     try {
+      const saved = localStorage.getItem('cre_hint_session')
+      if (!saved) return
       const session = JSON.parse(saved)
-      if (!session.token) return
-      fetch('/api/me', {
-        headers: { Authorization: `Bearer ${session.token}` }
-      })
-        .then(r => r.ok ? r.json() : Promise.reject())
-        .then(data => {
-          const user = { ...data.user, token: session.token }
-          setCurrentUser(data.user.role)
-          setLoggedInUser(user)
-          setCurrentPage('dashboard')
-        })
-        .catch(() => localStorage.removeItem('cre_hint_session'))
-    } catch { localStorage.removeItem('cre_hint_session') }
+      if (!session.token || !session.user) return
+      setCurrentUser(session.user.role)
+      setLoggedInUser({ ...session.user, token: session.token })
+      setCurrentPage('dashboard')
+    } catch { /* ignore */ }
   }, [])
 
 const handleLogin = async (e) => {
@@ -86,7 +78,7 @@ const handleLogin = async (e) => {
     }
 
     const authenticatedUser = { ...data.user, token: data.token }
-    localStorage.setItem('cre_hint_session', JSON.stringify({ token: data.token }))
+    localStorage.setItem('cre_hint_session', JSON.stringify({ token: data.token, user: data.user }))
     setCurrentUser(data.user.role)
     setLoggedInUser(authenticatedUser)
     setCurrentPage('dashboard')
