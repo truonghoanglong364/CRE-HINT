@@ -11,11 +11,12 @@ function DoctorDashboard({
 }) {
   const [patients, setPatients] = useState([])
   const [loadingPatients, setLoadingPatients] = useState(true)
+  const [stats, setStats] = useState(null)
 
   useEffect(() => {
     const loadPatients = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/patients', {
+        const response = await fetch('/api/patients', {
           headers: { Authorization: `Bearer ${user.token}` },
         })
         const data = await response.json()
@@ -27,8 +28,21 @@ function DoctorDashboard({
       }
     }
 
+    const loadStats = async () => {
+      try {
+        const response = await fetch('/api/stats/doctor', {
+          headers: { Authorization: `Bearer ${user.token}` },
+        })
+        const data = await response.json()
+        if (response.ok) setStats(data)
+      } catch (error) {
+        console.error('Không thể tải thống kê:', error)
+      }
+    }
+
     loadPatients()
-    const refreshInterval = setInterval(loadPatients, 30000)
+    loadStats()
+    const refreshInterval = setInterval(() => { loadPatients(); loadStats() }, 30000)
     return () => clearInterval(refreshInterval)
   }, [user.token])
 
@@ -76,32 +90,75 @@ function DoctorDashboard({
           <div className="doctor-avatar">BS</div>
         </header>
 
-        <section className="doctor-stat-grid">
-          <DoctorStat
-            title="Tổng bệnh nhân"
-            value={patients.length}
-            description="Đã đăng ký"
-          />
-
-          <DoctorStat
-            title="Ổn định"
-            value={stablePatients}
-            description="Có chỉ số trong ngưỡng"
-          />
-
-          <DoctorStat
-            title="Cần chú ý"
-            value={alertPatients.length}
-            description="Cần được kiểm tra"
-            warning={alertPatients.length > 0}
-          />
-
-          <DoctorStat
-            title="Lịch khám hôm nay"
-            value="4"
-            description="Bệnh nhân"
-          />
+        <section className="stats-grid">
+          <div className="stat-card">
+            <p className="stat-label">Tổng bệnh nhân</p>
+            <p className="stat-value">{stats?.patients?.total ?? patients.length}</p>
+            <p className="stat-desc">{stats?.patients?.withVitals ?? reportingPatients.length} đã gửi chỉ số</p>
+          </div>
+          <div className="stat-card stat-success">
+            <p className="stat-label">Ổn định</p>
+            <p className="stat-value">{stablePatients}</p>
+            <p className="stat-desc">Chỉ số trong ngưỡng</p>
+          </div>
+          <div className={`stat-card${alertPatients.length > 0 ? ' stat-warning' : ''}`}>
+            <p className="stat-label">Cần chú ý</p>
+            <p className="stat-value">{stats?.patients?.abnormal ?? alertPatients.length}</p>
+            <p className="stat-desc">Cần được kiểm tra</p>
+          </div>
+          <div className="stat-card">
+            <p className="stat-label">Lượt khám hôm nay</p>
+            <p className="stat-value">{stats?.today?.total ?? '—'}</p>
+            <p className="stat-desc">{stats?.today?.completed ?? 0} hoàn thành · {stats?.today?.inProgress ?? 0} đang xử lý</p>
+          </div>
         </section>
+
+        {stats?.dailyBreakdown?.length > 0 && (
+          <section className="chart-panel">
+            <h3>Lượt khám 7 ngày qua</h3>
+            <div className="chart-bars">
+              {stats.dailyBreakdown.map((day) => {
+                const maxVal = Math.max(...stats.dailyBreakdown.map((d) => d.total), 1)
+                return (
+                  <div className="chart-bar-group" key={day.date}>
+                    <div className="chart-bar" style={{ height: `${(day.total / maxVal) * 100}%` }} title={`Tổng: ${day.total}`} />
+                    <div className="chart-bar completed-bar" style={{ height: `${(day.completed / maxVal) * 100}%` }} title={`Hoàn thành: ${day.completed}`} />
+                    <span className="chart-bar-label">{day.date.slice(5)}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="chart-legend">
+              <span className="legend-total">Tổng lượt</span>
+              <span className="legend-completed">Hoàn thành</span>
+            </div>
+          </section>
+        )}
+
+        {stats && (
+          <section className="stats-grid" style={{ marginBottom: 20 }}>
+            <div className="stat-card">
+              <p className="stat-label">Tuần này</p>
+              <p className="stat-value">{stats.week?.total ?? 0}</p>
+              <p className="stat-desc">{stats.week?.completed ?? 0} hoàn thành</p>
+            </div>
+            <div className="stat-card">
+              <p className="stat-label">Tháng này</p>
+              <p className="stat-value">{stats.month?.total ?? 0}</p>
+              <p className="stat-desc">{stats.month?.completed ?? 0} hoàn thành</p>
+            </div>
+            <div className="stat-card">
+              <p className="stat-label">Tái khám đúng hẹn</p>
+              <p className="stat-value">{stats.followUp?.totalWithFollowUp ? Math.round((stats.followUp.returned / stats.followUp.totalWithFollowUp) * 100) : '—'}%</p>
+              <p className="stat-desc">{stats.followUp?.returned ?? 0}/{stats.followUp?.totalWithFollowUp ?? 0} bệnh nhân</p>
+            </div>
+            <div className="stat-card">
+              <p className="stat-label">Vắng mặt hôm nay</p>
+              <p className="stat-value">{stats.today?.absent ?? 0}</p>
+              <p className="stat-desc">Bệnh nhân không đến</p>
+            </div>
+          </section>
+        )}
 
         <section className="doctor-panel">
           <div className="doctor-panel-heading">

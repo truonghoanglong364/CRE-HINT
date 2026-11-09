@@ -47,7 +47,7 @@ const handleLogin = async (e) => {
   e.preventDefault()
 
   try {
-    const response = await fetch('http://localhost:3000/api/login', {
+    const response = await fetch('/api/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -75,7 +75,7 @@ const handleLogin = async (e) => {
     if (data.user.role === 'patient') {
       try {
         const vitalsResponse = await fetch(
-          `http://localhost:3000/api/vitals?userId=${data.user.id}`,
+          `/api/vitals?userId=${data.user.id}`,
           { headers: { Authorization: `Bearer ${data.token}` } }
         )
         const vitalsData = await vitalsResponse.json().catch(() => null)
@@ -105,7 +105,7 @@ const handleLogin = async (e) => {
 
   const handleSaveVitals = async (newVitals) => {
     try {
-      const response = await fetch('http://localhost:3000/api/vitals', {
+      const response = await fetch('/api/vitals', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

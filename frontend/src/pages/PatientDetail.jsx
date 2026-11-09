@@ -13,6 +13,7 @@ const EMPTY_VITALS = {
 
 function PatientDetail({ patient, authToken, vitals, hasAlert, onBack }) {
   const [history, setHistory] = useState([])
+  const [exporting, setExporting] = useState(false)
   const currentVitals = patient
     ? patient.weight != null ? patient : EMPTY_VITALS
     : vitals
@@ -27,7 +28,7 @@ function PatientDetail({ patient, authToken, vitals, hasAlert, onBack }) {
     const loadHistory = async () => {
       try {
         const response = await fetch(
-          `http://localhost:3000/api/vitals?userId=${patient.userId}`,
+          `/api/vitals?userId=${patient.userId}`,
           { headers: { Authorization: `Bearer ${authToken}` } }
         )
         const data = await response.json()
@@ -39,6 +40,82 @@ function PatientDetail({ patient, authToken, vitals, hasAlert, onBack }) {
 
     loadHistory()
   }, [patient?.userId, authToken])
+
+  const exportRecord = async () => {
+    if (!patient?.userId) return
+    setExporting(true)
+    try {
+      const response = await fetch(`/api/patients/${patient.userId}/export`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
+      const data = await response.json()
+      if (!response.ok) { alert(data.message); return }
+
+      const p = data.patient
+      let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bệnh án - ${p.fullName}</title>
+<style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:30px;color:#1e293b}
+h1{color:#1976d2;border-bottom:2px solid #1976d2;padding-bottom:10px}
+h2{color:#334155;margin-top:28px;border-bottom:1px solid #e2e8f0;padding-bottom:6px}
+table{width:100%;border-collapse:collapse;margin:10px 0}
+th,td{text-align:left;padding:8px 10px;border:1px solid #e2e8f0;font-size:13px}
+th{background:#f1f5f9;font-weight:600}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.info-item span{color:#64748b;font-size:12px}
+.info-item strong{display:block;margin-top:2px}
+.stamp{text-align:right;color:#94a3b8;font-size:12px;margin-top:40px}
+@media print{body{padding:15px}}</style></head><body>`
+      html += `<h1>BỆNH ÁN BỆNH NHÂN</h1>`
+      html += `<div class="info-grid">`
+      html += `<div class="info-item"><span>Họ và tên</span><strong>${p.fullName}</strong></div>`
+      html += `<div class="info-item"><span>Mã bệnh nhân</span><strong>${p.patientCode || 'Chưa cấp'}</strong></div>`
+      html += `<div class="info-item"><span>Ngày sinh</span><strong>${p.dateOfBirth || 'Chưa cập nhật'}</strong></div>`
+      html += `<div class="info-item"><span>Giới tính</span><strong>${p.gender || 'Chưa cập nhật'}</strong></div>`
+      html += `<div class="info-item"><span>Số điện thoại</span><strong>${p.phone || 'Chưa cập nhật'}</strong></div>`
+      html += `<div class="info-item"><span>Địa chỉ</span><strong>${p.address || 'Chưa cập nhật'}</strong></div>`
+      html += `</div>`
+
+      if (data.vitals.length > 0) {
+        html += `<h2>Lịch sử chỉ số sức khỏe</h2><table><tr><th>Thời gian</th><th>Cân nặng</th><th>Huyết áp</th><th>Nhịp tim</th><th>SpO₂</th><th>Triệu chứng</th></tr>`
+        for (const v of data.vitals) {
+          const symptoms = []
+          if (v.dyspnea) symptoms.push('Khó thở')
+          if (v.edema) symptoms.push('Phù')
+          if (v.chestPain) symptoms.push('Đau ngực')
+          html += `<tr><td>${new Date(v.createdAt).toLocaleString('vi-VN')}</td><td>${v.weight} kg</td><td>${v.systolic}/${v.diastolic}</td><td>${v.heartRate} bpm</td><td>${v.spo2}%</td><td>${symptoms.join(', ') || '—'}</td></tr>`
+        }
+        html += `</table>`
+      }
+
+      if (data.visits.length > 0) {
+        html += `<h2>Lịch sử khám bệnh</h2>`
+        for (const v of data.visits) {
+          html += `<div style="margin:14px 0;padding:12px;border:1px solid #e2e8f0;border-radius:8px">`
+          html += `<strong>${v.visitDate}</strong> · ${v.specialty} · <em>${v.status}</em>`
+          if (v.doctorName) html += ` · BS. ${v.doctorName}`
+          if (v.reason) html += `<p><strong>Lý do:</strong> ${v.reason}</p>`
+          if (v.examNotes) html += `<p><strong>Nội dung khám:</strong> ${v.examNotes}</p>`
+          if (v.resultText) html += `<p><strong>Kết luận:</strong> ${v.resultText}</p>`
+          if (v.prescription) html += `<p><strong>Đơn thuốc:</strong> ${v.prescription.replace(/\n/g, '<br>')}</p>`
+          if (v.followUpAt) html += `<p><strong>Tái khám:</strong> ${v.followUpAt}</p>`
+          html += `</div>`
+        }
+      }
+
+      html += `<p class="stamp">Xuất lúc: ${new Date().toLocaleString('vi-VN')} · CRE-HINT</p></body></html>`
+
+      const blob = new Blob([html], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `benh-an-${p.patientCode || p.fullName}.html`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      alert('Không thể xuất bệnh án: ' + error.message)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const symptoms = []
 
@@ -63,15 +140,22 @@ function PatientDetail({ patient, authToken, vitals, hasAlert, onBack }) {
             <p>{patient?.patientCode || 'Chưa cấp mã'} · {patient?.gender || 'Chưa cập nhật giới tính'}</p>
           </div>
 
-          <span
-            className={
-              currentAlert
-                ? 'detail-status detail-warning'
-                : 'detail-status detail-stable'
-            }
-          >
-            {currentAlert ? '● Cần chú ý' : hasCurrentVitals ? '● Ổn định' : '● Chưa có chỉ số'}
-          </span>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span
+              className={
+                currentAlert
+                  ? 'detail-status detail-warning'
+                  : 'detail-status detail-stable'
+              }
+            >
+              {currentAlert ? '● Cần chú ý' : hasCurrentVitals ? '● Ổn định' : '● Chưa có chỉ số'}
+            </span>
+            {patient?.userId && authToken && (
+              <button className="export-btn" onClick={exportRecord} disabled={exporting}>
+                {exporting ? 'Đang xuất...' : 'Xuất bệnh án'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ALERT */}

@@ -7,7 +7,7 @@ function Alerts({ user, onBack, onViewPatient }) {
   useEffect(() => {
     const loadPatients = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/patients', {
+        const response = await fetch('/api/patients', {
           headers: { Authorization: `Bearer ${user.token}` },
         })
         const data = await response.json()

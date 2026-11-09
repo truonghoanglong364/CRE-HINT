@@ -18,7 +18,7 @@ function VisitBooking({ user, onBack, onCreated }) {
     setSaving(true)
     setMessage('')
     try {
-      const response = await fetch('http://localhost:3000/api/visits', {
+      const response = await fetch('/api/visits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
         body: JSON.stringify({ ...form, doctorId: form.doctorId || null }),

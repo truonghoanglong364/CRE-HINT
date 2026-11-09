@@ -11,7 +11,7 @@ function HealthHistory({ vitals, user, onBack }) {
     const loadHistory = async () => {
       try {
         const response = await fetch(
-          `http://localhost:3000/api/vitals?userId=${user.id}`,
+          `/api/vitals?userId=${user.id}`,
           { headers: { Authorization: `Bearer ${user.token}` } }
         )
         const data = await response.json()

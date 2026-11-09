@@ -14,7 +14,7 @@ function Profile({ user, onBack }) {
       setLoading(true)
 
       const response = await fetch(
-        `http://localhost:3000/api/patients/${user.id}/profile`,
+        `/api/patients/${user.id}/profile`,
         {
           method: 'PUT',
           headers: {

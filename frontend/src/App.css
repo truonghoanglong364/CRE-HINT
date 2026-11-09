@@ -3115,3 +3115,53 @@
 .version-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; color: #64748b; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
 .version-row button { border: 1px solid #bfdbfe; border-radius: 7px; background: white; color: #1976d2; padding: 6px 9px; cursor: pointer; }
 @media (max-width: 650px) { .clinical-section-heading { align-items: flex-start; flex-direction: column; } .ai-grid { grid-template-columns: 1fr; } }
+
+/* Filter bar */
+.patient-filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.filter-btn { padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 20px; background: white; color: #64748b; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+.filter-btn:hover { border-color: #94a3b8; color: #334155; }
+.filter-btn.active { background: #1976d2; border-color: #1976d2; color: white; }
+
+/* Doctor stats dashboard */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+.stat-card { padding: 18px; border-radius: 12px; background: white; border: 1px solid #e2e8f0; }
+.stat-card .stat-label { color: #64748b; font-size: 13px; margin: 0; }
+.stat-card .stat-value { font-size: 28px; font-weight: 700; color: #1e293b; margin: 6px 0 2px; }
+.stat-card .stat-desc { font-size: 12px; color: #94a3b8; margin: 0; }
+.stat-card.stat-warning { border-color: #fbbf24; background: #fffbeb; }
+.stat-card.stat-warning .stat-value { color: #d97706; }
+.stat-card.stat-success { border-color: #86efac; background: #f0fdf4; }
+.stat-card.stat-success .stat-value { color: #16a34a; }
+.chart-panel { padding: 20px; border-radius: 12px; background: white; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+.chart-panel h3 { margin: 0 0 16px; font-size: 15px; color: #1e293b; }
+.chart-bars { display: flex; align-items: flex-end; gap: 8px; height: 120px; padding-top: 10px; }
+.chart-bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.chart-bar { width: 100%; max-width: 40px; border-radius: 6px 6px 0 0; background: #3b82f6; min-height: 4px; transition: height 0.3s; }
+.chart-bar.completed-bar { background: #22c55e; }
+.chart-bar-label { font-size: 10px; color: #94a3b8; }
+.chart-legend { display: flex; gap: 16px; margin-top: 10px; font-size: 12px; color: #64748b; }
+.chart-legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.chart-legend .legend-total::before { background: #3b82f6; }
+.chart-legend .legend-completed::before { background: #22c55e; }
+@media (max-width: 800px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 500px) { .stats-grid { grid-template-columns: 1fr; } }
+
+/* Template selector */
+.template-section { margin-bottom: 16px; padding: 14px; border-radius: 10px; background: #f8fafc; border: 1px solid #e2e8f0; }
+.template-section h3 { margin: 0 0 10px; font-size: 14px; color: #475569; }
+.template-list { display: flex; flex-direction: column; gap: 6px; }
+.template-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; transition: border-color 0.15s; }
+.template-item:hover { border-color: #3b82f6; }
+.template-item .template-name { font-weight: 600; color: #1e293b; font-size: 13px; }
+.template-item .template-uses { color: #94a3b8; font-size: 11px; }
+.template-actions { display: flex; gap: 6px; }
+.template-actions button { padding: 5px 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; font-size: 12px; cursor: pointer; }
+.template-actions .use-btn { color: #1976d2; border-color: #bfdbfe; }
+.template-actions .delete-btn { color: #dc2626; border-color: #fecaca; }
+.save-template-row { display: flex; gap: 8px; margin-top: 8px; }
+.save-template-row input { flex: 1; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; }
+.save-template-row button { padding: 8px 14px; border: none; border-radius: 8px; background: #1976d2; color: white; font-size: 13px; cursor: pointer; white-space: nowrap; }
+
+/* Export button */
+.export-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; color: #475569; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+.export-btn:hover { border-color: #3b82f6; color: #1976d2; }

@@ -10,7 +10,7 @@ function ReceptionDashboard({ user, onLogout }) {
   const [form, setForm] = useState({ patientEmail: '', specialty: 'Tim mạch', reason: '', room: 'Phòng khám Tim mạch 01' })
 
   const load = async () => {
-    const response = await fetch(`http://localhost:3000/api/visits/queue?date=${date}`, { headers: { Authorization: `Bearer ${user.token}` } })
+    const response = await fetch(`/api/visits/queue?date=${date}`, { headers: { Authorization: `Bearer ${user.token}` } })
     const data = await response.json()
     setVisits(data.visits || [])
   }
@@ -18,14 +18,14 @@ function ReceptionDashboard({ user, onLogout }) {
   useEffect(() => { load().catch((error) => setMessage(error.message)) }, [date])
 
   const checkIn = async (id) => {
-    const response = await fetch(`http://localhost:3000/api/visits/${id}/check-in`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` }, body: JSON.stringify({ room: form.room }) })
+    const response = await fetch(`/api/visits/${id}/check-in`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` }, body: JSON.stringify({ room: form.room }) })
     if (!response.ok) { const data = await response.json(); setMessage(data.message || 'Không thể tiếp nhận lượt khám'); return }
     await load()
   }
 
   const createDirectVisit = async (event) => {
     event.preventDefault()
-    const response = await fetch('http://localhost:3000/api/visits/reception', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` }, body: JSON.stringify({ ...form, visitDate: date }) })
+    const response = await fetch('/api/visits/reception', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` }, body: JSON.stringify({ ...form, visitDate: date }) })
     const data = await response.json()
     if (!response.ok) { setMessage(data.message || 'Không thể tạo lượt khám'); return }
     setMessage('Đã tạo lượt khám trực tiếp thành công.')

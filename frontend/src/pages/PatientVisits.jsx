@@ -8,8 +8,8 @@ function PatientVisits({ user, onBack, onBook }) {
 
   const load = async () => {
     const [visitResponse, notificationResponse] = await Promise.all([
-      fetch('http://localhost:3000/api/visits/mine', { headers: { Authorization: `Bearer ${user.token}` } }),
-      fetch('http://localhost:3000/api/notifications', { headers: { Authorization: `Bearer ${user.token}` } }),
+      fetch('/api/visits/mine', { headers: { Authorization: `Bearer ${user.token}` } }),
+      fetch('/api/notifications', { headers: { Authorization: `Bearer ${user.token}` } }),
     ])
     const visitData = await visitResponse.json()
     const notificationData = await notificationResponse.json()

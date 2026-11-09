@@ -4,11 +4,12 @@ function PatientList({ user, onBack, onViewPatient }) {
   const [patients, setPatients] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
 
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/patients', {
+        const response = await fetch('/api/patients', {
           headers: { Authorization: `Bearer ${user.token}` },
         })
         const data = await response.json()
@@ -30,11 +31,18 @@ function PatientList({ user, onBack, onViewPatient }) {
 
   const filteredPatients = patients.filter((patient) => {
     const keyword = search.toLowerCase()
-
-    return (
+    const matchesSearch =
       patient.fullName?.toLowerCase().includes(keyword) ||
-      patient.patientCode?.toLowerCase().includes(keyword)
-    )
+      patient.patientCode?.toLowerCase().includes(keyword) ||
+      patient.phone?.toLowerCase().includes(keyword) ||
+      patient.email?.toLowerCase().includes(keyword)
+
+    if (!matchesSearch) return false
+
+    if (statusFilter === 'alert') return patient.weight != null && isAbnormalReading(patient)
+    if (statusFilter === 'stable') return patient.weight != null && !isAbnormalReading(patient)
+    if (statusFilter === 'no-data') return patient.weight == null
+    return true
   })
   const patientsWithReadings = patients.filter((patient) => patient.weight != null)
   const alertPatients = patientsWithReadings.filter(isAbnormalReading)
@@ -85,13 +93,31 @@ function PatientList({ user, onBack, onViewPatient }) {
 
         </div>
 
+        {/* FILTER */}
+        <div className="patient-filter-bar">
+          {[
+            { key: 'all', label: `Tất cả (${patients.length})` },
+            { key: 'alert', label: `Cần chú ý (${alertPatients.length})` },
+            { key: 'stable', label: `Ổn định (${patientsWithReadings.length - alertPatients.length})` },
+            { key: 'no-data', label: `Chưa gửi chỉ số (${patients.length - patientsWithReadings.length})` },
+          ].map((f) => (
+            <button
+              key={f.key}
+              className={statusFilter === f.key ? 'filter-btn active' : 'filter-btn'}
+              onClick={() => setStatusFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
         {/* SEARCH */}
         <div className="patient-search-box">
           <span>⌕</span>
 
           <input
             type="text"
-            placeholder="Tìm kiếm theo tên hoặc mã bệnh nhân..."
+            placeholder="Tìm kiếm theo tên, mã BN, SĐT hoặc email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
