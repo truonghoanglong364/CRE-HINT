@@ -141,6 +141,16 @@ app.post('/api/login', async (req, res) => {
   }
 })
 
+app.get('/api/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await db.prepare('SELECT id, name, email, role, patient_code FROM users WHERE id = ?').get(req.user.id)
+    if (!user) return res.status(401).json({ message: 'User not found' })
+    res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, patient_code: user.patient_code } })
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // =========================
 // GHI NHẬN VÀ LẤY CHỈ SỐ
 // =========================

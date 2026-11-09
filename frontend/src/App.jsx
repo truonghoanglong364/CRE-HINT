@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import PatientDashboard from './pages/PatientDashboard'
 import AddVitals from './pages/AddVitals'
 import DoctorDashboard from './pages/DoctorDashboard'
@@ -43,6 +43,26 @@ function App() {
 
   const [hasAlert, setHasAlert] = useState(false)
 
+  useEffect(() => {
+    const saved = localStorage.getItem('cre_hint_session')
+    if (!saved) return
+    try {
+      const session = JSON.parse(saved)
+      if (!session.token) return
+      fetch('/api/me', {
+        headers: { Authorization: `Bearer ${session.token}` }
+      })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(data => {
+          const user = { ...data.user, token: session.token }
+          setCurrentUser(data.user.role)
+          setLoggedInUser(user)
+          setCurrentPage('dashboard')
+        })
+        .catch(() => localStorage.removeItem('cre_hint_session'))
+    } catch { localStorage.removeItem('cre_hint_session') }
+  }, [])
+
 const handleLogin = async (e) => {
   e.preventDefault()
 
@@ -66,6 +86,7 @@ const handleLogin = async (e) => {
     }
 
     const authenticatedUser = { ...data.user, token: data.token }
+    localStorage.setItem('cre_hint_session', JSON.stringify({ token: data.token }))
     setCurrentUser(data.user.role)
     setLoggedInUser(authenticatedUser)
     setCurrentPage('dashboard')
@@ -194,6 +215,7 @@ const handleLogin = async (e) => {
         onViewVisits={() => setCurrentPage('visits')}
         onViewBookVisit={() => setCurrentPage('book-visit')}
         onLogout={() => {
+          localStorage.removeItem('cre_hint_session')
           setCurrentUser(null)
           setLoggedInUser(null)
           setCurrentPage('dashboard')
@@ -275,7 +297,9 @@ const handleLogin = async (e) => {
       onViewAppointments={() => setCurrentPage('doctor-appointments')}
       onViewQueue={() => setCurrentPage('doctor-queue')}
       onLogout={() => {
+        localStorage.removeItem('cre_hint_session')
         setCurrentUser(null)
+        setLoggedInUser(null)
         setCurrentPage('dashboard')
         setEmail('')
         setPassword('')
@@ -289,6 +313,7 @@ const handleLogin = async (e) => {
       <ReceptionDashboard
         user={loggedInUser}
         onLogout={() => {
+          localStorage.removeItem('cre_hint_session')
           setCurrentUser(null)
           setLoggedInUser(null)
           setEmail('')
