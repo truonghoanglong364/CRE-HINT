@@ -1,4 +1,9 @@
 import { useEffect, useState } from 'react'
+import {
+  ArrowLeftIcon,
+  AlertTriangleIcon,
+  ChevronRightIcon
+} from '../components/Icons'
 
 function Alerts({ user, onBack, onViewPatient }) {
   const [patients, setPatients] = useState([])
@@ -28,163 +33,174 @@ function Alerts({ user, onBack, onViewPatient }) {
   return (
     <div className="alerts-page">
       <div className="alerts-container">
-
         <button className="back-button" onClick={onBack}>
-          ← Quay lại tổng quan
+          <ArrowLeftIcon size={16} />
+          <span>Quay lại trang tổng quan</span>
         </button>
 
         <div className="alerts-header">
           <div>
-            <h1>Cảnh báo</h1>
-            <p>Theo dõi và xử lý các cảnh báo sức khỏe của bệnh nhân.</p>
+            <h1>Danh sách cảnh báo lâm sàng</h1>
+            <p>Theo dõi và can thiệp kịp thời các bệnh nhân có sinh hiệu vượt ngưỡng báo động.</p>
           </div>
 
-          <div className="doctor-small-profile">
-            <div className="doctor-small-avatar">MT</div>
-
-            <div>
-              <strong>BS. Nguyễn Minh Tuấn</strong>
-              <span>Bác sĩ Tim mạch</span>
-            </div>
+          <div className="doctor-avatar" style={{ fontSize: '14px' }}>
+            BS
           </div>
         </div>
 
-        <div className="alerts-summary">
-          <div className="alert-summary-box">
-            <span>Cảnh báo chưa xử lý</span>
-            <strong>{alertPatients.length}</strong>
+        <div className="stats-grid" style={{ marginBottom: '28px' }}>
+          <div className="stat-card stat-alert">
+            <p className="stat-label">Cảnh báo chưa xử lý</p>
+            <p className="stat-value">{alertPatients.length}</p>
+            <p className="stat-desc">Trường hợp cần đánh giá</p>
           </div>
 
-          <div className="alert-summary-box">
-            <span>Cần chú ý</span>
-            <strong>{alertPatients.length}</strong>
+          <div className="stat-card">
+            <p className="stat-label">Đã gửi dữ liệu</p>
+            <p className="stat-value">{reportingPatients.length}</p>
+            <p className="stat-desc">Bệnh nhân truyền sinh hiệu</p>
           </div>
 
-          <div className="alert-summary-box">
-            <span>Bệnh nhân đã gửi chỉ số</span>
-            <strong>{reportingPatients.length}</strong>
+          <div className="stat-card stat-success">
+            <p className="stat-label">Bệnh nhân an toàn</p>
+            <p className="stat-value">{reportingPatients.length - alertPatients.length}</p>
+            <p className="stat-desc">Sinh hiệu trong ngưỡng</p>
+          </div>
+
+          <div className="stat-card">
+            <p className="stat-label">Tổng số hồ sơ</p>
+            <p className="stat-value">{patients.length}</p>
+            <p className="stat-desc">Hồ sơ theo dõi</p>
           </div>
         </div>
 
-        <section className="alerts-card">
-          <div className="alerts-card-heading">
+        <section className="feature-card">
+          <div className="section-title">
             <div>
-              <h2>Cảnh báo gần đây</h2>
-              <p>Các trường hợp cần được nhân viên y tế xem xét.</p>
+              <h2>Chi tiết các trường hợp cảnh báo</h2>
+              <p>Sắp xếp theo thứ tự phát hiện mới nhất.</p>
             </div>
 
             {alertPatients.length > 0 && (
-              <span className="new-alert-badge">
-                {alertPatients.length} cảnh báo mới
+              <span className="alert-badge">
+                ⚠ {alertPatients.length} cảnh báo cần xử lý
               </span>
             )}
           </div>
 
-          {loading && <p>Đang tải cảnh báo...</p>}
+          {loading && <p style={{ color: 'var(--slate-500)', padding: '20px 0' }}>Đang nạp dữ liệu cảnh báo...</p>}
 
-          {!loading && alertPatients.length > 0 ? (
-            alertPatients.map((patient) => (
-              <div className="alert-list-item" key={patient.userId}>
-                <div className="alert-list-icon">!</div>
+          {!loading && alertPatients.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--slate-400)' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-pill)', background: 'var(--success-100)', color: 'var(--success)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+                ✓
+              </div>
+              <h3 style={{ fontSize: '16px', color: 'var(--slate-800)', marginBottom: '4px' }}>Tất cả bệnh nhân đều ổn định</h3>
+              <p style={{ fontSize: '13px' }}>Không có cảnh báo sinh hiệu bất thường nào tại thời điểm này.</p>
+            </div>
+          )}
 
-              <div className="alert-list-content">
+          {!loading && alertPatients.map((patient) => {
+            const reasons = getReasons(patient)
+            return (
+              <div
+                key={patient.userId}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '16px',
+                  padding: '18px',
+                  border: '1.5px solid var(--danger-200)',
+                  borderRadius: 'var(--radius-xl)',
+                  background: 'var(--bg-surface)',
+                  marginBottom: '14px',
+                  boxShadow: 'var(--shadow-xs)'
+                }}
+              >
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--danger-100)',
+                    color: 'var(--danger-700)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold',
+                    flexShrink: 0
+                  }}
+                >
+                  <AlertTriangleIcon size={20} />
+                </div>
 
-                <div className="alert-list-top">
-                  <div>
-                    <h3>{patient.fullName}</h3>
-                    <span>{patient.patientCode || 'Chưa cấp mã'}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                    <h3 style={{ fontSize: '16px', color: 'var(--slate-900)', margin: 0 }}>
+                      {patient.fullName}
+                    </h3>
+                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--primary)', background: 'var(--primary-50)', padding: '2px 8px', borderRadius: 'var(--radius-pill)' }}>
+                      Mã: {patient.patientCode || 'Chưa cấp'}
+                    </span>
+                    <span className="alert-badge" style={{ marginLeft: 'auto' }}>
+                      ● Cần chú ý
+                    </span>
                   </div>
 
-                  <span className="alert-list-status">
-                    ● Cần chú ý
-                  </span>
+                  <p style={{ fontSize: '12px', color: 'var(--slate-400)', margin: '0 0 10px' }}>
+                    Gửi lần cuối: {new Date(patient.lastSubmittedAt).toLocaleString('vi-VN')}
+                  </p>
+
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                    <span style={{ background: 'var(--slate-50)', border: '1px solid var(--slate-200)', padding: '4px 10px', borderRadius: 'var(--radius-md)', fontSize: '13px' }}>
+                      Cân nặng: <strong style={{ color: patient.weight >= 68.8 ? 'var(--danger)' : 'inherit' }}>{patient.weight} kg</strong>
+                    </span>
+                    <span style={{ background: 'var(--slate-50)', border: '1px solid var(--slate-200)', padding: '4px 10px', borderRadius: 'var(--radius-md)', fontSize: '13px' }}>
+                      Huyết áp: <strong style={{ color: patient.systolic >= 160 ? 'var(--danger)' : 'inherit' }}>{patient.systolic}/{patient.diastolic} mmHg</strong>
+                    </span>
+                    <span style={{ background: 'var(--slate-50)', border: '1px solid var(--slate-200)', padding: '4px 10px', borderRadius: 'var(--radius-md)', fontSize: '13px' }}>
+                      Nhịp tim: <strong style={{ color: patient.heartRate >= 100 ? 'var(--danger)' : 'inherit' }}>{patient.heartRate} bpm</strong>
+                    </span>
+                    <span style={{ background: 'var(--slate-50)', border: '1px solid var(--slate-200)', padding: '4px 10px', borderRadius: 'var(--radius-md)', fontSize: '13px' }}>
+                      SpO₂: <strong style={{ color: patient.spo2 <= 93 ? 'var(--danger)' : 'inherit' }}>{patient.spo2}%</strong>
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: '13px', color: 'var(--danger-700)', fontWeight: '500' }}>
+                    <strong>Dấu hiệu bất thường: </strong>
+                    {reasons.join(' · ')}
+                  </div>
                 </div>
 
-                <div className="alert-list-vitals">
-                  <AlertVital
-                    label="Cân nặng"
-                    value={`${patient.weight} kg`}
-                  />
-
-                  <AlertVital
-                    label="Huyết áp"
-                    value={`${patient.systolic}/${patient.diastolic} mmHg`}
-                  />
-
-                  <AlertVital
-                    label="Nhịp tim"
-                    value={`${patient.heartRate} bpm`}
-                  />
-
-                  <AlertVital
-                    label="SpO₂"
-                    value={`${patient.spo2}%`}
-                  />
-                </div>
-
-                <div className="alert-list-reasons">
-                  <strong>Dấu hiệu ghi nhận:</strong>
-                  <span>{getReasons(patient).join(' · ')}</span>
-                </div>
-
-                <div className="alert-list-actions">
-                  <button
-                    className="detail-button"
-                    onClick={() => onViewPatient(patient)}
-                  >
-                    Xem bệnh nhân
-                  </button>
-
-                </div>
-
+                <button
+                  className="primary-action"
+                  onClick={() => onViewPatient(patient)}
+                  style={{ alignSelf: 'center', whiteSpace: 'nowrap' }}
+                >
+                  <span>Mở bệnh án</span>
+                  <ChevronRightIcon size={14} />
+                </button>
               </div>
-              </div>
-            ))
-          ) : !loading ? (
-            <div className="empty-alert">
-              <div>✓</div>
-              <h3>Không có cảnh báo chưa xử lý</h3>
-              <p>
-                Hiện tại không có bệnh nhân nào cần xử lý cảnh báo.
-              </p>
-            </div>
-          ) : null}
+            )
+          })}
         </section>
-
       </div>
     </div>
   )
 }
 
-
-function AlertVital({ label, value }) {
-  return (
-    <div className="alert-list-vital">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  )
-}
-
-
-function getReasons(vitals) {
+function getReasons(patient) {
   const reasons = []
-
-  if (vitals.weight >= 68.8) reasons.push('Cân nặng tăng')
-  if (vitals.systolic >= 160) reasons.push('Huyết áp tâm thu cao')
-  if (vitals.heartRate >= 100) reasons.push('Nhịp tim cao')
-  if (vitals.spo2 <= 93) reasons.push('SpO₂ thấp')
-  if (vitals.dyspnea) reasons.push('Khó thở')
-  if (vitals.edema) reasons.push('Phù chân')
-  if (vitals.chestPain) reasons.push('Đau ngực')
-
-  return reasons.length
-    ? reasons
-    : ['Không có dấu hiệu bất thường']
+  if (patient.weight >= 68.8) reasons.push('Cân nặng tăng nguy cơ ứ dịch')
+  if (patient.systolic >= 160) reasons.push('Tăng huyết áp tâm thu')
+  if (patient.heartRate >= 100) reasons.push('Nhịp tim nhanh')
+  if (patient.spo2 <= 93) reasons.push('SpO₂ giảm')
+  if (patient.dyspnea) reasons.push('Khó thở khi gắng sức')
+  if (patient.edema) reasons.push('Phù chi dưới')
+  if (patient.chestPain) reasons.push('Đau tức ngực')
+  return reasons.length ? reasons : ['Chỉ số bất thường']
 }
-
-
-export default Alerts
 
 function isAbnormalReading(patient) {
   return (
@@ -197,3 +213,5 @@ function isAbnormalReading(patient) {
     Boolean(patient.chestPain)
   )
 }
+
+export default Alerts

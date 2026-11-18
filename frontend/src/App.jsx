@@ -16,6 +16,7 @@ import PatientVisits from './pages/PatientVisits'
 import DoctorQueue from './pages/DoctorQueue'
 import ReceptionDashboard from './pages/ReceptionDashboard'
 import ClinicalSupport from './pages/ClinicalSupport'
+import { HeartIcon, UserIcon, StethoscopeIcon, FileTextIcon } from './components/Icons'
 import './App.css'
 
 const EMPTY_VITALS = {
@@ -331,7 +332,9 @@ const handleLogin = async (e) => {
     <div className="login-page">
       <div className="login-card">
         <div className="logo">
-          <div className="heart">♥</div>
+          <div className="heart">
+            <HeartIcon size={24} />
+          </div>
           <h1>CRE-HINT</h1>
         </div>
 
@@ -347,7 +350,7 @@ const handleLogin = async (e) => {
 
             <input
               type="text"
-              placeholder="Nhập email hoặc mã bệnh nhân"
+              placeholder="Nhập email hoặc mã bệnh nhân (vd: BN0001)"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -368,7 +371,7 @@ const handleLogin = async (e) => {
 
           <div className="form-options">
             <label className="remember">
-              <input type="checkbox" />
+              <input type="checkbox" defaultChecked />
               Ghi nhớ đăng nhập
             </label>
 
@@ -378,7 +381,7 @@ const handleLogin = async (e) => {
           </div>
 
           <button className="login-button" type="submit">
-            Đăng nhập
+            Đăng nhập hệ thống
           </button>
         </form>
 
@@ -389,12 +392,12 @@ const handleLogin = async (e) => {
             type="button"
             onClick={() => setAuthPage('register')}
           >
-            Đăng ký
+            Đăng ký tài khoản mới
           </button>
         </div>
 
         <div className="demo">
-          <p>Tài khoản demo</p>
+          <p>Tài khoản demo nhanh</p>
 
           <div className="demo-accounts">
             <button
@@ -404,7 +407,8 @@ const handleLogin = async (e) => {
                 setPassword('123456')
               }}
             >
-              👤 Bệnh nhân
+              <UserIcon size={16} />
+              <span>Bệnh nhân</span>
             </button>
 
             <button
@@ -414,8 +418,10 @@ const handleLogin = async (e) => {
                 setPassword('123456')
               }}
             >
-              🩺 Bác sĩ
+              <StethoscopeIcon size={16} />
+              <span>Bác sĩ</span>
             </button>
+
             <button
               type="button"
               onClick={() => {
@@ -423,13 +429,14 @@ const handleLogin = async (e) => {
                 setPassword('123456')
               }}
             >
-              🧾 Nhân viên y tế
+              <FileTextIcon size={16} />
+              <span>Nhân viên YT</span>
             </button>
           </div>
         </div>
 
         <p className="footer">
-          CRE-HINT · Heart Failure Patient Management System
+          CRE-HINT · Heart Failure Telemonitoring & Clinical Decision Support
         </p>
       </div>
     </div>
