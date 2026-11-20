@@ -1,4 +1,9 @@
 import { useEffect, useState } from 'react'
+import {
+  ArrowLeftIcon,
+  SearchIcon,
+  UsersIcon
+} from '../components/Icons'
 
 function PatientList({ user, onBack, onViewPatient }) {
   const [patients, setPatients] = useState([])
@@ -13,12 +18,9 @@ function PatientList({ user, onBack, onViewPatient }) {
           headers: { Authorization: `Bearer ${user.token}` },
         })
         const data = await response.json()
-
-        if (!response.ok) {
-          throw new Error(data.message || 'Không thể tải bệnh nhân')
+        if (response.ok) {
+          setPatients(data.patients || [])
         }
-
-        setPatients(data.patients)
       } catch (error) {
         console.error('Lỗi lấy danh sách bệnh nhân:', error)
       } finally {
@@ -44,204 +46,254 @@ function PatientList({ user, onBack, onViewPatient }) {
     if (statusFilter === 'no-data') return patient.weight == null
     return true
   })
+
   const patientsWithReadings = patients.filter((patient) => patient.weight != null)
   const alertPatients = patientsWithReadings.filter(isAbnormalReading)
 
   return (
     <div className="patient-list-page">
       <div className="patient-list-container">
-
         <button className="back-button" onClick={onBack}>
-          ← Quay lại tổng quan
+          <ArrowLeftIcon size={16} />
+          <span>Quay lại trang tổng quan</span>
         </button>
 
         <div className="patient-list-header">
           <div>
-            <h1>Danh sách bệnh nhân</h1>
-            <p>Quản lý và theo dõi bệnh nhân suy tim.</p>
+            <h1>Danh sách bệnh nhân suy tim</h1>
+            <p>Quản lý toàn bộ hồ sơ bệnh nhân, tiền sử bệnh và dữ liệu đo từ xa.</p>
           </div>
 
-          <div className="doctor-small-profile">
-            <div className="doctor-small-avatar">MT</div>
-
-            <div>
-              <strong>BS. Nguyễn Minh Tuấn</strong>
-              <span>Bác sĩ Tim mạch</span>
-            </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <span style={{ background: 'var(--primary-50)', color: 'var(--primary)', padding: '6px 14px', borderRadius: 'var(--radius-pill)', fontWeight: 'bold', fontSize: '13px' }}>
+              Tổng: {patients.length} bệnh nhân
+            </span>
           </div>
         </div>
 
-        {/* THỐNG KÊ */}
-        <div className="patient-list-summary">
-
-          <div className="patient-summary-box">
-            <span>Tổng bệnh nhân</span>
-            <strong>{patients.length}</strong>
+        {/* Filter & Search Toolbar */}
+        <div
+          style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '16px 20px',
+            marginBottom: '20px',
+            display: 'flex',
+            gap: '16px',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            boxShadow: 'var(--shadow-card)'
+          }}
+        >
+          <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
+            <SearchIcon
+              size={18}
+              style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-400)' }}
+            />
+            <input
+              type="text"
+              placeholder="Tìm theo tên, mã bệnh nhân (BN0001), điện thoại..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '9px 12px 9px 38px',
+                border: '1.5px solid var(--slate-200)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '14px',
+                outline: 'none'
+              }}
+            />
           </div>
 
-          <div className="patient-summary-box">
-            <span>Đang ổn định</span>
-            <strong>
-              {patientsWithReadings.length - alertPatients.length}
-            </strong>
-          </div>
-
-          <div className="patient-summary-box warning-summary">
-            <span>Cần chú ý</span>
-            <strong>{alertPatients.length}</strong>
-          </div>
-
-        </div>
-
-        {/* FILTER */}
-        <div className="patient-filter-bar">
-          {[
-            { key: 'all', label: `Tất cả (${patients.length})` },
-            { key: 'alert', label: `Cần chú ý (${alertPatients.length})` },
-            { key: 'stable', label: `Ổn định (${patientsWithReadings.length - alertPatients.length})` },
-            { key: 'no-data', label: `Chưa gửi chỉ số (${patients.length - patientsWithReadings.length})` },
-          ].map((f) => (
+          <div style={{ display: 'flex', gap: '8px' }}>
             <button
-              key={f.key}
-              className={statusFilter === f.key ? 'filter-btn active' : 'filter-btn'}
-              onClick={() => setStatusFilter(f.key)}
+              onClick={() => setStatusFilter('all')}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--slate-200)',
+                background: statusFilter === 'all' ? 'var(--primary)' : 'white',
+                color: statusFilter === 'all' ? 'white' : 'var(--slate-700)',
+                fontWeight: '600',
+                fontSize: '13px',
+                cursor: 'pointer'
+              }}
             >
-              {f.label}
+              Tất cả ({patients.length})
             </button>
-          ))}
-        </div>
-
-        {/* SEARCH */}
-        <div className="patient-search-box">
-          <span>⌕</span>
-
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo tên, mã BN, SĐT hoặc email..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        {/* DANH SÁCH */}
-        <div className="patient-list-card">
-
-          <div className="patient-list-table-header">
-            <span>BỆNH NHÂN</span>
-            <span>THÔNG TIN</span>
-            <span>LIÊN HỆ</span>
-            <span>TRẠNG THÁI</span>
-            <span></span>
+            <button
+              onClick={() => setStatusFilter('alert')}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--slate-200)',
+                background: statusFilter === 'alert' ? 'var(--danger)' : 'white',
+                color: statusFilter === 'alert' ? 'white' : 'var(--slate-700)',
+                fontWeight: '600',
+                fontSize: '13px',
+                cursor: 'pointer'
+              }}
+            >
+              Cần chú ý ({alertPatients.length})
+            </button>
+            <button
+              onClick={() => setStatusFilter('stable')}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--slate-200)',
+                background: statusFilter === 'stable' ? 'var(--success)' : 'white',
+                color: statusFilter === 'stable' ? 'white' : 'var(--slate-700)',
+                fontWeight: '600',
+                fontSize: '13px',
+                cursor: 'pointer'
+              }}
+            >
+              Ổn định ({patientsWithReadings.length - alertPatients.length})
+            </button>
+            <button
+              onClick={() => setStatusFilter('no-data')}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--slate-200)',
+                background: statusFilter === 'no-data' ? 'var(--slate-700)' : 'white',
+                color: statusFilter === 'no-data' ? 'white' : 'var(--slate-700)',
+                fontWeight: '600',
+                fontSize: '13px',
+                cursor: 'pointer'
+              }}
+            >
+              Chưa gửi đo ({patients.length - patientsWithReadings.length})
+            </button>
           </div>
+        </div>
 
+        {/* Patient Table */}
+        <section className="feature-card" style={{ padding: '0', overflow: 'hidden' }}>
           {loading && (
-            <p style={{ padding: '20px' }}>
-              Đang tải danh sách bệnh nhân...
-            </p>
+            <p style={{ color: 'var(--slate-500)', padding: '24px' }}>Đang nạp dữ liệu bệnh nhân...</p>
           )}
 
           {!loading && filteredPatients.length === 0 && (
-            <p style={{ padding: '20px' }}>
-              Không tìm thấy bệnh nhân.
-            </p>
+            <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--slate-400)' }}>
+              <UsersIcon size={40} style={{ margin: '0 auto 12px', display: 'block' }} />
+              <h3>Không tìm thấy bệnh nhân phù hợp</h3>
+              <p>Hãy thử thay đổi từ khóa tìm kiếm hoặc bộ lọc trạng thái.</p>
+            </div>
           )}
 
-          {!loading &&
-            filteredPatients.map((patient) => {
+          {!loading && filteredPatients.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ background: 'var(--slate-50)', borderBottom: '1.5px solid var(--slate-200)', color: 'var(--slate-500)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <th style={{ padding: '14px 20px' }}>Hồ sơ & Mã BN</th>
+                    <th style={{ padding: '14px 20px' }}>Liên hệ</th>
+                    <th style={{ padding: '14px 20px' }}>Chỉ số đo gần nhất</th>
+                    <th style={{ padding: '14px 20px' }}>Đánh giá an toàn</th>
+                    <th style={{ padding: '14px 20px', textAlign: 'right' }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPatients.map((patient) => {
+                    const hasVitals = patient.weight != null
+                    const isAlert = hasVitals && isAbnormalReading(patient)
 
-              const isAlert = patient.weight != null && isAbnormalReading(patient)
+                    return (
+                      <tr
+                        key={patient.userId}
+                        onClick={() => onViewPatient(patient)}
+                        style={{
+                          borderBottom: '1px solid var(--slate-100)',
+                          cursor: 'pointer',
+                          transition: 'background 0.15s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--slate-50)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <td style={{ padding: '16px 20px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div className="small-avatar" style={{ width: '40px', height: '40px', fontSize: '13px' }}>
+                              {patient.fullName?.slice(0, 2).toUpperCase() || 'BN'}
+                            </div>
+                            <div>
+                              <strong style={{ display: 'block', color: 'var(--slate-900)' }}>{patient.fullName}</strong>
+                              <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 'bold' }}>
+                                {patient.patientCode || 'Chưa cấp'}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
 
-              return (
-                <div
-                  className={
-                    isAlert
-                      ? 'patient-list-row patient-alert-row'
-                      : 'patient-list-row'
-                  }
-                  key={patient.id}
-                >
+                        <td style={{ padding: '16px 20px', color: 'var(--slate-600)' }}>
+                          <div style={{ fontSize: '13px' }}>{patient.phone || 'Chưa cập nhật SĐT'}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--slate-400)' }}>{patient.email || '—'}</div>
+                        </td>
 
-                  {/* TÊN + MÃ */}
-                  <div className="patient-name-cell">
+                        <td style={{ padding: '16px 20px' }}>
+                          {hasVitals ? (
+                            <div style={{ display: 'flex', gap: '8px', fontSize: '13px' }}>
+                              <span style={{ background: 'var(--slate-100)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontWeight: '600' }}>
+                                {patient.weight} kg
+                              </span>
+                              <span style={{ background: 'var(--slate-100)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontWeight: '600' }}>
+                                {patient.systolic}/{patient.diastolic} mmHg
+                              </span>
+                              <span style={{ background: 'var(--slate-100)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontWeight: '600' }}>
+                                {patient.heartRate} bpm
+                              </span>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '12px', color: 'var(--slate-400)', fontStyle: 'italic' }}>
+                              Chưa gửi dữ liệu đo
+                            </span>
+                          )}
+                        </td>
 
-                    <div className="patient-list-avatar">
-                      {patient.fullName
-                        ?.split(' ')
-                        .slice(-2)
-                        .map((word) => word[0])
-                        .join('')
-                        .toUpperCase()}
-                    </div>
+                        <td style={{ padding: '16px 20px' }}>
+                          {hasVitals ? (
+                            <span className={isAlert ? 'alert-badge' : 'normal-badge'}>
+                              ● {isAlert ? 'Cần chú ý' : 'Ổn định'}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '12px', color: 'var(--slate-400)' }}>
+                              ● Chưa có dữ liệu
+                            </span>
+                          )}
+                        </td>
 
-                    <div>
-                      <strong>{patient.fullName}</strong>
-                      <span>{patient.patientCode}</span>
-                    </div>
-
-                  </div>
-
-                  {/* THÔNG TIN */}
-                  <div className="patient-info-cell">
-
-                    <strong>
-                      {patient.dateOfBirth || 'Chưa cập nhật'}
-                    </strong>
-
-                    <span>
-                      {patient.gender || 'Chưa cập nhật'}
-                    </span>
-
-                  </div>
-
-                  {/* LIÊN HỆ */}
-                  <div className="patient-phone">
-                    {patient.phone || patient.email}
-                  </div>
-
-                  {/* TRẠNG THÁI */}
-                  <div>
-                    <span
-                      className={
-                        isAlert
-                          ? 'patient-status-badge patient-status-warning'
-                          : 'patient-status-badge'
-                      }
-                    >
-                      ● {patient.weight == null
-                        ? 'Chưa gửi chỉ số'
-                        : isAlert ? 'Cần chú ý' : 'Ổn định'}
-                    </span>
-                  </div>
-
-                  {/* CHI TIẾT */}
-                  <div>
-                    <button
-                      className="view-patient-button"
-                      onClick={() => onViewPatient(patient)}
-                    >
-                      Xem chi tiết
-                    </button>
-                  </div>
-
-                </div>
-              )
-            })}
-
-        </div>
-
-        {!loading && (
-          <p className="patient-list-footer">
-            Đang hiển thị {filteredPatients.length} trong tổng số{' '}
-            {patients.length} bệnh nhân
-          </p>
-        )}
-
+                        <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onViewPatient(patient) }}
+                            style={{
+                              padding: '6px 14px',
+                              border: '1px solid var(--slate-200)',
+                              borderRadius: 'var(--radius-md)',
+                              background: 'white',
+                              color: 'var(--primary)',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Xem bệnh án →
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   )
 }
-
-export default PatientList
 
 function isAbnormalReading(patient) {
   return (
@@ -254,3 +306,5 @@ function isAbnormalReading(patient) {
     Boolean(patient.chestPain)
   )
 }
+
+export default PatientList

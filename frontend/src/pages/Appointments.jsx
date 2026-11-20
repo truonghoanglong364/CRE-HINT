@@ -1,150 +1,106 @@
+import { ArrowLeftIcon } from '../components/Icons'
+
 function Appointments({ onBack }) {
   return (
     <div className="appointments-page">
       <div className="appointments-container">
-
         <button className="back-button" onClick={onBack}>
-          ← Quay lại tổng quan
+          <ArrowLeftIcon size={16} />
+          <span>Quay lại trang tổng quan</span>
         </button>
 
-        {/* HEADER */}
         <div className="appointments-header">
           <div>
-            <h1>Lịch tái khám</h1>
-            <p>Theo dõi lịch khám và tái khám của bạn.</p>
+            <h1>Lịch tái khám chuyên khoa</h1>
+            <p>Theo dõi lịch khám định kỳ, hướng dẫn chuẩn bị và thông tin bác sĩ phụ trách.</p>
           </div>
 
-          <div className="history-patient">
-            <div className="small-avatar">NA</div>
-
-            <div>
-              <strong>Nguyễn Văn An</strong>
-              <span>BN001</span>
-            </div>
+          <div style={{ background: 'var(--success-50)', color: 'var(--success-700)', padding: '6px 14px', borderRadius: 'var(--radius-pill)', fontWeight: 'bold', fontSize: '13px' }}>
+            ● Lịch khám đã xác nhận
           </div>
         </div>
 
-        {/* NEXT APPOINTMENT */}
-        <section className="next-appointment-card">
-
-          <div className="appointment-date-box">
-            <span>THÁNG 10</span>
+        {/* Next Appointment Card */}
+        <section
+          style={{
+            background: 'var(--bg-surface)',
+            border: '1.5px solid var(--primary-border)',
+            borderRadius: 'var(--radius-2xl)',
+            padding: '28px',
+            boxShadow: 'var(--shadow-md)',
+            display: 'flex',
+            gap: '24px',
+            alignItems: 'center',
+            marginBottom: '28px',
+            flexWrap: 'wrap'
+          }}
+        >
+          <div className="appointment-date" style={{ width: '84px', height: '84px' }}>
             <strong>15</strong>
-            <small>2026</small>
+            <span>THÁNG 10</span>
+            <small style={{ fontSize: '10px', opacity: 0.85 }}>2026</small>
           </div>
 
-          <div className="appointment-main-info">
-            <span className="appointment-label">
+          <div style={{ flex: 1, minWidth: '260px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '0.05em' }}>
               Lịch tái khám sắp tới
             </span>
-
-            <h2>Khám chuyên khoa Tim mạch</h2>
-
-            <div className="appointment-meta">
-              <span>🕘 08:30 - 09:00</span>
-              <span>📍 Phòng khám Tim mạch</span>
+            <h2 style={{ fontSize: '22px', color: 'var(--slate-900)', margin: '4px 0 8px' }}>
+              Khám chuyên khoa Tim mạch & Đánh giá EF
+            </h2>
+            <div style={{ display: 'flex', gap: '16px', color: 'var(--slate-600)', fontSize: '14px', flexWrap: 'wrap' }}>
+              <span>⏰ 08:30 - 09:30</span>
+              <span>📍 Phòng khám Tim mạch 01 (Tầng 2)</span>
+              <span>👨‍⚕️ Bác sĩ: <strong>BS. Nguyễn Minh Tuấn</strong></span>
             </div>
-
-            <p>
-              Bác sĩ phụ trách: <strong>BS. Nguyễn Minh Tuấn</strong>
-            </p>
           </div>
 
-          <span className="appointment-status">
-            ● Đã xác nhận
+          <span className="normal-badge" style={{ fontSize: '13px', padding: '6px 14px' }}>
+            ● Đã xếp lịch khám
           </span>
-
         </section>
 
-        {/* NOTE */}
-        <div className="appointment-notice">
-          <div className="appointment-notice-icon">i</div>
-
-          <div>
-            <strong>Lưu ý trước khi tái khám</strong>
-            <p>
-              Mang theo đơn thuốc hiện tại và các kết quả xét nghiệm gần
-              nhất. Tiếp tục ghi nhận chỉ số sức khỏe hằng ngày trước
-              buổi khám.
-            </p>
-          </div>
-        </div>
-
-        {/* APPOINTMENT HISTORY */}
-        <section className="appointments-card">
-
-          <div className="appointments-card-header">
+        {/* Preparation Guidelines */}
+        <section className="feature-card">
+          <div className="section-title">
             <div>
-              <h2>Lịch sử khám</h2>
-              <p>Các buổi khám và tái khám gần đây</p>
+              <h2>Hướng dẫn chuẩn bị trước khi đến khám</h2>
+              <p>Các điều cần lưu ý để buổi khám đạt kết quả tốt nhất.</p>
             </div>
           </div>
 
-          <div className="appointment-history-list">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+            <div style={{ padding: '16px', background: 'var(--slate-50)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--slate-200)' }}>
+              <strong style={{ display: 'block', fontSize: '14px', color: 'var(--slate-900)', marginBottom: '4px' }}>
+                1. Mang theo thuốc đang dùng
+              </strong>
+              <p style={{ fontSize: '13px', color: 'var(--slate-600)', margin: 0 }}>
+                Mang toàn bộ vỏ hộp hoặc đơn thuốc hiện tại để bác sĩ đối chiếu và đánh giá tương tác thuốc.
+              </p>
+            </div>
 
-            <AppointmentHistory
-              date="05/09/2026"
-              title="Tái khám suy tim"
-              doctor="BS. Nguyễn Minh Tuấn"
-              note="Tình trạng ổn định, tiếp tục theo dõi tại nhà."
-            />
+            <div style={{ padding: '16px', background: 'var(--slate-50)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--slate-200)' }}>
+              <strong style={{ display: 'block', fontSize: '14px', color: 'var(--slate-900)', marginBottom: '4px' }}>
+                2. Nhịn ăn sáng nếu có xét nghiệm máu
+              </strong>
+              <p style={{ fontSize: '13px', color: 'var(--slate-600)', margin: 0 }}>
+                Nếu có chỉ định xét nghiệm sinh hóa, điện giải hoặc BNP, vui lòng nhịn ăn sáng (được uống nước lọc).
+              </p>
+            </div>
 
-            <AppointmentHistory
-              date="05/08/2026"
-              title="Khám chuyên khoa Tim mạch"
-              doctor="BS. Nguyễn Minh Tuấn"
-              note="Điều chỉnh đơn thuốc và hướng dẫn theo dõi cân nặng."
-            />
-
-            <AppointmentHistory
-              date="03/07/2026"
-              title="Tái khám định kỳ"
-              doctor="BS. Nguyễn Minh Tuấn"
-              note="Theo dõi huyết áp, nhịp tim và triệu chứng khó thở."
-            />
-
+            <div style={{ padding: '16px', background: 'var(--slate-50)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--slate-200)' }}>
+              <strong style={{ display: 'block', fontSize: '14px', color: 'var(--slate-900)', marginBottom: '4px' }}>
+                3. Ghi lại các triệu chứng bất thường
+              </strong>
+              <p style={{ fontSize: '13px', color: 'var(--slate-600)', margin: 0 }}>
+                Ghi nhận lại các đợt mệt, khó thở hoặc số lần tăng cân đột ngột trong tuần qua để báo bác sĩ.
+              </p>
+            </div>
           </div>
         </section>
-
       </div>
     </div>
   )
 }
-
-
-function AppointmentHistory({ date, title, doctor, note }) {
-  return (
-    <div className="appointment-history-item">
-
-      <div className="appointment-history-icon">
-        ✓
-      </div>
-
-      <div className="appointment-history-content">
-        <div className="appointment-history-top">
-          <div>
-            <h3>{title}</h3>
-            <span>{date}</span>
-          </div>
-
-          <span className="completed-appointment">
-            ● Đã hoàn thành
-          </span>
-        </div>
-
-        <p className="appointment-doctor">
-          {doctor}
-        </p>
-
-        <div className="appointment-result">
-          <span>Kết luận</span>
-          <p>{note}</p>
-        </div>
-      </div>
-
-    </div>
-  )
-}
-
 
 export default Appointments

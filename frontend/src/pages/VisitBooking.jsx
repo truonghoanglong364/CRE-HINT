@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ArrowLeftIcon } from '../components/Icons'
 
 function VisitBooking({ user, onBack, onCreated }) {
   const [today] = useState(() => new Date().toISOString().slice(0, 10))
@@ -36,22 +37,86 @@ function VisitBooking({ user, onBack, onCreated }) {
   return (
     <div className="feature-page">
       <div className="feature-container narrow-container">
-        <button className="back-button" onClick={onBack}>← Quay lại tổng quan</button>
+        <button className="back-button" onClick={onBack}>
+          <ArrowLeftIcon size={16} />
+          <span>Quay lại trang tổng quan</span>
+        </button>
+
         <div className="feature-header">
           <div>
-            <h1>Đăng ký khám</h1>
-            <p>Gửi yêu cầu khám và theo dõi trạng thái tiếp nhận.</p>
+            <h1>Đăng ký khám chuyên khoa tim mạch</h1>
+            <p>Chọn ngày khám mong muốn và gửi lý do để bệnh viện chuẩn bị tiếp đón.</p>
           </div>
         </div>
-        <form className="feature-card booking-form" onSubmit={submit}>
-          <div className="form-grid">
-            <label>Ngày khám<input type="date" name="visitDate" value={form.visitDate} onChange={update} required /></label>
-            <label>Chuyên khoa<select name="specialty" value={form.specialty} onChange={update}><option>Tim mạch</option><option>Nội tổng quát</option><option>Khám suy tim</option></select></label>
-            <label>Bác sĩ mong muốn<select name="doctorId" value={form.doctorId} onChange={update}><option value="">Bất kỳ bác sĩ phụ trách</option></select></label>
+
+        {message && (
+          <div
+            style={{
+              padding: '12px 18px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--danger-50)',
+              border: '1px solid var(--danger-200)',
+              color: 'var(--danger-700)',
+              fontSize: '14px',
+              fontWeight: '600',
+              marginBottom: '20px'
+            }}
+          >
+            ⚠ {message}
           </div>
-          <label>Lý do khám<textarea name="reason" value={form.reason} onChange={update} placeholder="Mô tả ngắn lý do khám" required /></label>
-          {message && <div className="register-error">{message}</div>}
-          <div className="form-actions"><button type="button" className="cancel-button" onClick={onBack}>Hủy</button><button className="save-button" disabled={saving}>{saving ? 'Đang gửi...' : 'Gửi đăng ký khám'}</button></div>
+        )}
+
+        <form className="feature-card" onSubmit={submit}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '16px' }}>
+            <div className="form-group">
+              <label>Ngày bạn muốn đến khám</label>
+              <input
+                type="date"
+                name="visitDate"
+                value={form.visitDate}
+                min={today}
+                onChange={update}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Chuyên khoa khám bệnh</label>
+              <select name="specialty" value={form.specialty} onChange={update}>
+                <option>Tim mạch</option>
+                <option>Nội tổng quát</option>
+                <option>Khám suy tim chuyên sâu</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Bác sĩ mong muốn (Tùy chọn)</label>
+            <select name="doctorId" value={form.doctorId} onChange={update}>
+              <option value="">Bác sĩ chuyên khoa phụ trách theo ca</option>
+              <option value="2">BS. Nguyễn Minh Tuấn (Chuyên gia Suy tim)</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Lý do khám hoặc triệu chứng khó chịu gần đây</label>
+            <textarea
+              name="reason"
+              value={form.reason}
+              onChange={update}
+              placeholder="Ví dụ: Tái khám định kỳ, khó thở tăng khi nằm, phù 2 cẳng chân 3 ngày nay..."
+              required
+            />
+          </div>
+
+          <div className="form-actions">
+            <button type="button" className="cancel-button" onClick={onBack}>
+              Hủy bỏ
+            </button>
+            <button className="save-button" disabled={saving} type="submit">
+              {saving ? 'Đang gửi đăng ký...' : 'Xác nhận đăng ký khám'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

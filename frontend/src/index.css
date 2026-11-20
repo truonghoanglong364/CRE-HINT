@@ -1,25 +1,333 @@
 :root {
-  font-family: Inter, Arial, Helvetica, sans-serif;
-  color: #1e293b;
-  background: #f8fafc;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  /* ==========================================================================
+     CRE-HINT DESIGN TOKENS (Modern Web Guidance + Impeccable + UI/UX Designer)
+     ========================================================================== */
+
+  /* Typography Stack */
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Font Scale */
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.875rem;   /* 14px */
+  --text-base: 1rem;     /* 16px */
+  --text-lg: 1.125rem;   /* 18px */
+  --text-xl: 1.25rem;    /* 20px */
+  --text-2xl: 1.5rem;    /* 24px */
+  --text-3xl: 1.875rem;  /* 30px */
+  --text-4xl: 2.25rem;   /* 36px */
+
+  /* Font Weights */
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-extrabold: 800;
+
+  /* Brand Primary Palette (Clinical Blue / Modern Cyan) */
+  --primary-50: #f0f9ff;
+  --primary-100: #e0f2fe;
+  --primary-200: #bae6fd;
+  --primary-300: #7dd3fc;
+  --primary-400: #38bdf8;
+  --primary-500: #0ea5e9;
+  --primary-600: #0284c7; /* Main Primary */
+  --primary-700: #0369a1;
+  --primary-800: #075985;
+  --primary-900: #0c4a6e;
+  --primary: var(--primary-600);
+  --primary-hover: var(--primary-700);
+  --primary-light: var(--primary-50);
+  --primary-border: var(--primary-200);
+  --primary-glow: rgba(2, 132, 199, 0.22);
+  --primary-gradient: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+
+  /* Cardiovascular & Pulse Alert Palette (Ruby / Crimson) */
+  --cardio-50: #fff1f2;
+  --cardio-100: #ffe4e6;
+  --cardio-200: #fecdd3;
+  --cardio-300: #fda4af;
+  --cardio-400: #fb7185;
+  --cardio-500: #f43f5e;
+  --cardio-600: #e11d48; /* Main Cardio */
+  --cardio-700: #be123c;
+  --cardio-800: #9f1239;
+  --cardio: var(--cardio-600);
+  --cardio-hover: var(--cardio-700);
+  --cardio-light: var(--cardio-50);
+  --cardio-border: var(--cardio-200);
+  --cardio-glow: rgba(225, 29, 72, 0.25);
+  --cardio-gradient: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+
+  /* Status Colors */
+  --success-50: #ecfdf5;
+  --success-100: #d1fae5;
+  --success-200: #a7f3d0;
+  --success-500: #10b981;
+  --success-600: #059669;
+  --success-700: #047857;
+  --success: var(--success-600);
+  --success-light: var(--success-50);
+  --success-border: var(--success-200);
+  --success-glow: rgba(16, 185, 129, 0.25);
+
+  --warning-50: #fffbeb;
+  --warning-100: #fef3c7;
+  --warning-200: #fde68a;
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  --warning-700: #b45309;
+  --warning: var(--warning-600);
+  --warning-light: var(--warning-50);
+  --warning-border: var(--warning-200);
+
+  --danger-50: #fef2f2;
+  --danger-100: #fee2e2;
+  --danger-200: #fecaca;
+  --danger-500: #ef4444;
+  --danger-600: #dc2626;
+  --danger-700: #b91c1c;
+  --danger: var(--danger-600);
+  --danger-light: var(--danger-50);
+  --danger-border: var(--danger-200);
+  --danger-glow: rgba(239, 68, 68, 0.28);
+
+  /* Slate Neutrals */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
+
+  /* Surfaces & Canvas */
+  --bg-canvas: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --bg-hover: #f8fafc;
+  --bg-active: #f1f5f9;
+
+  /* Text Semantic Tokens (WCAG 2.2 AA Compliant) */
+  --text-primary: #0f172a;   /* Contrast > 12:1 on white */
+  --text-secondary: #334155; /* Contrast > 7:1 on white */
+  --text-muted: #64748b;     /* Contrast > 4.5:1 on white */
+  --text-subtle: #94a3b8;
+  --text-inverse: #ffffff;
+  --text-link: var(--primary-600);
+
+  /* Border Tokens */
+  --border-subtle: #e2e8f0;
+  --border-default: #cbd5e1;
+  --border-focus: var(--primary-600);
+
+  /* Layered Modern Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.09), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --shadow-card-hover: 0 12px 24px -4px rgba(2, 132, 199, 0.12), 0 4px 8px -2px rgba(15, 23, 42, 0.04);
+  --shadow-modal: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+
+  /* Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
+  --radius-pill: 9999px;
+
+  /* Spacing Scale (8-point grid) */
+  --sp-0_5: 2px;
+  --sp-1: 4px;
+  --sp-1_5: 6px;
+  --sp-2: 8px;
+  --sp-2_5: 10px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 28px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* Transitions */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 150ms var(--ease-spring);
+  --transition-normal: 240ms var(--ease-spring);
+  --transition-slow: 380ms var(--ease-spring);
 }
 
-html,
-body,
-#root {
+/* ==========================================================================
+   RESET & GLOBAL BASE
+   ========================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
   margin: 0;
-  width: 100%;
-  min-width: 320px;
-  min-height: 100%;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: var(--bg-canvas);
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
+  min-width: 320px;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
-button,
-input {
-  font: inherit;
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Accessible Focus States */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Custom Modern Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--slate-300);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--slate-400);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--slate-300) transparent;
+}
+
+/* Base typography helpers */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  font-weight: var(--fw-bold);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+p {
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+a:hover {
+  color: var(--primary-hover);
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* ==========================================================================
+   GLOBAL KEYFRAME ANIMATIONS (/animate + /delight)
+   ========================================================================== */
+
+/* Heartbeat Rhythm (Lub-dub cycle) */
+@keyframes heartBeat {
+  0% { transform: scale(1); }
+  14% { transform: scale(1.14); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.09); }
+  70% { transform: scale(1); }
+  100% { transform: scale(1); }
+}
+
+/* Alert Beacon Pulse */
+@keyframes pulseBadge {
+  0%, 100% {
+    box-shadow: 0 0 0 0 var(--cardio-glow);
+  }
+  50% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+
+/* Stable Glow Pulse */
+@keyframes pulseStable {
+  0%, 100% {
+    box-shadow: 0 0 0 0 var(--success-glow);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+/* Smooth Fade In Up */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Subtle Shimmer */
+@keyframes subtleShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Scale Pop for Modals */
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Motion Accessibility Override */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
