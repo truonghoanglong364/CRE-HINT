@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import PatientDashboard from './pages/PatientDashboard'
-import AddVitals from './pages/AddVitals'
 import DoctorDashboard from './pages/DoctorDashboard'
 import PatientDetail from './pages/PatientDetail'
 import HealthHistory from './pages/HealthHistory'
@@ -116,31 +115,6 @@ const handleLogin = async (e) => {
   }
 }
 
-  const handleSaveVitals = async (newVitals) => {
-    try {
-      const response = await fetch('/api/vitals', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${loggedInUser.token}`,
-        },
-        body: JSON.stringify(newVitals),
-      })
-      const data = await response.json()
-
-      if (!response.ok) {
-        return data.message || 'Không thể gửi chỉ số sức khỏe.'
-      }
-
-      setVitals(data.vital)
-      setHasAlert(isAbnormalVitals(data.vital))
-      setCurrentPage('dashboard')
-    } catch (error) {
-      console.error(error)
-      return 'Không thể kết nối tới server!'
-    }
-  }
-
   // =========================
   // PATIENT
   // =========================
@@ -186,21 +160,11 @@ const handleLogin = async (e) => {
       )
     }
 
-    if (currentPage === 'add-vitals') {
-      return (
-        <AddVitals
-          onBack={() => setCurrentPage('dashboard')}
-          onSave={handleSaveVitals}
-        />
-      )
-    }
-
     return (
       <PatientDashboard
         user={loggedInUser}
         vitals={vitals}
         hasAlert={hasAlert}
-        onAddVitals={() => setCurrentPage('add-vitals')}
         onViewHistory={() => setCurrentPage('health-history')}
         onViewMedication={() => setCurrentPage('medication')}
         onViewAppointments={() => setCurrentPage('appointments')}

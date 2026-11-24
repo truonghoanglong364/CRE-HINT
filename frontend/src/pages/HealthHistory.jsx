@@ -111,7 +111,7 @@ function HealthHistory({ vitals, user, onBack }) {
             ))}
 
             {records.length === 0 && (
-              <p>{user ? 'Bạn chưa gửi chỉ số sức khỏe nào.' : 'Đang tải lịch sử...'}</p>
+              <p>{user ? 'Chưa có chỉ số sinh hiệu nào được ghi nhận.' : 'Đang tải lịch sử...'}</p>
             )}
 
           </div>

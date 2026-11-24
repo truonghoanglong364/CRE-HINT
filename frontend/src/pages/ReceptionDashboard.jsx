@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import AddVitals, { VisitVitals } from './AddVitals'
 
 const labels = { registered: 'Chờ tiếp nhận', waiting: 'Đã xếp hàng', called: 'Đã gọi', in_progress: 'Đang khám', waiting_result: 'Chờ kết quả', completed: 'Hoàn thành', absent: 'Vắng mặt' }
 
@@ -8,6 +9,8 @@ function ReceptionDashboard({ user, onLogout }) {
   const [message, setMessage] = useState('')
   const [showDirectVisit, setShowDirectVisit] = useState(false)
   const [form, setForm] = useState({ patientEmail: '', specialty: 'Tim mạch', reason: '', room: 'Phòng khám Tim mạch 01' })
+  const [doctors, setDoctors] = useState([])
+  const [intakeVisit, setIntakeVisit] = useState(null)
 
   const load = async () => {
     const response = await fetch(`/api/visits/queue?date=${date}`, { headers: { Authorization: `Bearer ${user.token}` } })
@@ -16,10 +19,16 @@ function ReceptionDashboard({ user, onLogout }) {
   }
 
   useEffect(() => { load().catch((error) => setMessage(error.message)) }, [date])
+  useEffect(() => {
+    fetch('/api/doctors', { headers: { Authorization: `Bearer ${user.token}` } })
+      .then((response) => response.json())
+      .then((data) => setDoctors(data.doctors || []))
+      .catch(() => setMessage('Không tải được danh sách bác sĩ.'))
+  }, [user.token])
 
-  const checkIn = async (id) => {
-    const response = await fetch(`/api/visits/${id}/check-in`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` }, body: JSON.stringify({ room: form.room }) })
-    if (!response.ok) { const data = await response.json(); setMessage(data.message || 'Không thể tiếp nhận lượt khám'); return }
+  const handleIntakeDone = async (visit) => {
+    setIntakeVisit(null)
+    setMessage(`Đã cấp số ${visit.queue_number} và chuyển lượt khám cho bác sĩ.`)
     await load()
   }
 
@@ -34,7 +43,7 @@ function ReceptionDashboard({ user, onLogout }) {
     await load()
   }
 
-  return <div className="dashboard-page"><aside className="sidebar"><div className="sidebar-logo"><span>♥</span><h2>CRE-HINT</h2></div><nav><button className="nav-item active">▣ Quản lý lượt khám</button><button className="nav-item" onClick={load}>↻ Làm mới danh sách</button></nav><button className="logout-button" onClick={onLogout}>Đăng xuất</button></aside><main className="dashboard-main"><header className="dashboard-header"><div><p className="welcome">Xin chào,</p><h1>{user.fullName} 👋</h1><p>Xác nhận bệnh nhân đến, cấp số và tạo lượt khám trực tiếp.</p></div><div className="doctor-avatar">YT</div></header><section className="doctor-panel"><div className="doctor-panel-heading"><div><h2>Lịch đăng ký khám</h2><p>Những bệnh nhân đã đăng ký trong ngày được chọn.</p></div><div className="reception-actions"><input className="date-filter" type="date" value={date} onChange={(event) => setDate(event.target.value)} /><button className="primary-action" onClick={() => setShowDirectVisit(!showDirectVisit)}>+ Tạo lượt trực tiếp</button></div></div>{showDirectVisit && <form className="direct-visit-form" onSubmit={createDirectVisit}><h3>Tạo lượt khám cho bệnh nhân đến trực tiếp</h3><div className="form-grid"><label>Email bệnh nhân<input type="email" value={form.patientEmail} onChange={(event) => setForm({ ...form, patientEmail: event.target.value })} placeholder="email bệnh nhân đã đăng ký" required /></label><label>Phòng khám<input value={form.room} onChange={(event) => setForm({ ...form, room: event.target.value })} required /></label><label>Chuyên khoa<select value={form.specialty} onChange={(event) => setForm({ ...form, specialty: event.target.value })}><option>Tim mạch</option><option>Nội tổng quát</option><option>Khám suy tim</option></select></label><label>Lý do khám<input value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} required /></label></div><button className="save-button">Tạo lượt khám</button></form>}{message && <div className="register-error">{message}</div>}{visits.length === 0 && <div className="empty-alert"><h3>Chưa có lượt khám</h3><p>Danh sách đăng ký của ngày này đang trống.</p></div>}{visits.map((visit) => <div className="reception-row" key={visit.id}><div><strong>{visit.patient_name}</strong><p>{visit.patient_code || 'Chưa có mã'} · {visit.specialty}</p><small>{visit.reason}</small></div><span className={`visit-status status-${visit.status}`}>{labels[visit.status]}</span>{visit.room && <span className="room-label">{visit.room}</span>}{visit.status === 'registered' && <button className="primary-action" onClick={() => checkIn(visit.id)}>Xác nhận đã đến & cấp số</button>}{visit.queue_number && <span className="queue-number small-queue-number">{visit.queue_number}</span>}</div>)}</section></main></div>
+  return <div className="dashboard-page"><aside className="sidebar"><div className="sidebar-logo"><span>♥</span><h2>CRE-HINT</h2></div><nav><button className="nav-item active">▣ Quản lý lượt khám</button><button className="nav-item" onClick={load}>↻ Làm mới danh sách</button></nav><button className="logout-button" onClick={onLogout}>Đăng xuất</button></aside><main className="dashboard-main"><header className="dashboard-header"><div><p className="welcome">Xin chào,</p><h1>{user.fullName} 👋</h1><p>Tiếp nhận bệnh nhân, đo sinh hiệu và chuyển lượt khám cho bác sĩ.</p></div><div className="doctor-avatar">YT</div></header><section className="doctor-panel"><div className="doctor-panel-heading"><div><h2>Lịch đăng ký khám</h2><p>Những bệnh nhân đã đăng ký trong ngày được chọn.</p></div><div className="reception-actions"><input className="date-filter" type="date" value={date} onChange={(event) => setDate(event.target.value)} /><button className="primary-action" onClick={() => setShowDirectVisit(!showDirectVisit)}>+ Tạo lượt trực tiếp</button></div></div>{showDirectVisit && <form className="direct-visit-form" onSubmit={createDirectVisit}><h3>Tạo lượt khám cho bệnh nhân đến trực tiếp</h3><div className="form-grid"><label>Email bệnh nhân<input type="email" value={form.patientEmail} onChange={(event) => setForm({ ...form, patientEmail: event.target.value })} placeholder="email bệnh nhân đã đăng ký" required /></label><label>Phòng khám<input value={form.room} onChange={(event) => setForm({ ...form, room: event.target.value })} required /></label><label>Chuyên khoa<select value={form.specialty} onChange={(event) => setForm({ ...form, specialty: event.target.value })}><option>Tim mạch</option><option>Nội tổng quát</option><option>Khám suy tim</option></select></label><label>Lý do khám<input value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} required /></label></div><button className="save-button">Tạo lượt khám</button></form>}{message && <div className="register-error">{message}</div>}{visits.length === 0 && <div className="empty-alert"><h3>Chưa có lượt khám</h3><p>Danh sách đăng ký của ngày này đang trống.</p></div>}{visits.map((visit) => <div className="reception-row" key={visit.id}><div><strong>{visit.patient_name}</strong><p>{visit.patient_code || 'Chưa có mã'} · {visit.specialty}</p><small>{visit.reason}</small><VisitVitals visit={visit} />{visit.doctor_name && visit.status !== 'registered' && <small>→ BS. {visit.doctor_name}</small>}</div><span className={`visit-status status-${visit.status}`}>{labels[visit.status]}</span>{visit.room && <span className="room-label">{visit.room}</span>}{visit.status === 'registered' && <button className="primary-action" onClick={() => setIntakeVisit(visit)}>Nhập sinh hiệu & chuyển bác sĩ</button>}{visit.queue_number && <span className="queue-number small-queue-number">{visit.queue_number}</span>}</div>)}</section></main>{intakeVisit && <AddVitals user={user} visit={intakeVisit} doctors={doctors} defaultRoom={form.room} onClose={() => setIntakeVisit(null)} onDone={handleIntakeDone} />}</div>
 }
 
 export default ReceptionDashboard

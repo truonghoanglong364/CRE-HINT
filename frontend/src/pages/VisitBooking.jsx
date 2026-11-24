@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 function VisitBooking({ user, onBack, onCreated }) {
   const [today] = useState(() => new Date().toISOString().slice(0, 10))
@@ -10,6 +10,14 @@ function VisitBooking({ user, onBack, onCreated }) {
   })
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [doctors, setDoctors] = useState([])
+
+  useEffect(() => {
+    fetch('/api/doctors', { headers: { Authorization: `Bearer ${user.token}` } })
+      .then((response) => response.json())
+      .then((data) => setDoctors(data.doctors || []))
+      .catch(() => {})
+  }, [user.token])
 
   const update = (event) => setForm({ ...form, [event.target.name]: event.target.value })
 
@@ -47,7 +55,7 @@ function VisitBooking({ user, onBack, onCreated }) {
           <div className="form-grid">
             <label>Ngày khám<input type="date" name="visitDate" value={form.visitDate} onChange={update} required /></label>
             <label>Chuyên khoa<select name="specialty" value={form.specialty} onChange={update}><option>Tim mạch</option><option>Nội tổng quát</option><option>Khám suy tim</option></select></label>
-            <label>Bác sĩ mong muốn<select name="doctorId" value={form.doctorId} onChange={update}><option value="">Bất kỳ bác sĩ phụ trách</option></select></label>
+            <label>Bác sĩ mong muốn<select name="doctorId" value={form.doctorId} onChange={update}><option value="">Bất kỳ bác sĩ phụ trách</option>{doctors.map((d) => <option key={d.id} value={d.id}>{d.fullName}</option>)}</select></label>
           </div>
           <label>Lý do khám<textarea name="reason" value={form.reason} onChange={update} placeholder="Mô tả ngắn lý do khám" required /></label>
           {message && <div className="register-error">{message}</div>}

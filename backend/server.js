@@ -155,52 +155,29 @@ app.get('/api/me', authenticateToken, async (req, res) => {
 // GHI NHẬN VÀ LẤY CHỈ SỐ
 // =========================
 
-app.post('/api/vitals', authenticateToken, allowRoles('patient'), async (req, res) => {
-  try {
-    const userId = req.user.id
-    const measurements = {
-      weight: Number(req.body.weight), systolic: Number(req.body.systolic),
-      diastolic: Number(req.body.diastolic), heartRate: Number(req.body.heartRate), spo2: Number(req.body.spo2),
-    }
-    const symptoms = { dyspnea: Boolean(req.body.dyspnea), edema: Boolean(req.body.edema), chestPain: Boolean(req.body.chestPain) }
-
-    if (!Number.isInteger(userId) || userId < 1 ||
-        !Object.values(measurements).every(Number.isFinite) ||
-        measurements.weight <= 0 || measurements.systolic <= 0 ||
-        measurements.diastolic <= 0 || measurements.heartRate <= 0 ||
-        measurements.spo2 < 0 || measurements.spo2 > 100) {
-      return res.status(400).json({ message: 'Chỉ số gửi lên không hợp lệ!' })
-    }
-
-    const patient = await db.prepare("SELECT users.id FROM users JOIN patients ON patients.user_id = users.id WHERE users.id = ? AND users.role = 'patient'").get(userId)
-    if (!patient) return res.status(404).json({ message: 'Không tìm thấy bệnh nhân!' })
-
-    const result = await db.prepare(`
-      INSERT INTO vitals (user_id, weight, systolic, diastolic, heart_rate, spo2, dyspnea, edema, chest_pain)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(userId, measurements.weight, measurements.systolic, measurements.diastolic, measurements.heartRate, measurements.spo2,
-      symptoms.dyspnea ? 1 : 0, symptoms.edema ? 1 : 0, symptoms.chestPain ? 1 : 0)
-
-    res.status(201).json({
-      message: 'Đã gửi chỉ số sức khỏe cho bác sĩ.',
-      vital: { id: result.lastInsertRowid, ...measurements, ...symptoms, createdAt: new Date().toISOString() },
-    })
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Không thể lưu chỉ số sức khỏe!' })
+// Sinh hiệu do nhân viên y tế đo và nhập khi tiếp nhận lượt khám (bệnh nhân không tự nhập).
+function parseVitals(body = {}) {
+  const measurements = {
+    weight: Number(body.weight), systolic: Number(body.systolic),
+    diastolic: Number(body.diastolic), heartRate: Number(body.heartRate), spo2: Number(body.spo2),
   }
-})
+  const symptoms = { dyspnea: Boolean(body.dyspnea), edema: Boolean(body.edema), chestPain: Boolean(body.chestPain) }
+  const valid = Object.values(measurements).every(Number.isFinite) &&
+    measurements.weight > 0 && measurements.systolic > 0 && measurements.diastolic > 0 &&
+    measurements.heartRate > 0 && measurements.spo2 >= 0 && measurements.spo2 <= 100
+  return valid ? { ...measurements, ...symptoms } : null
+}
 
 app.get('/api/vitals', authenticateToken, async (req, res) => {
   try {
     const userId = Number(req.query.userId)
     if (!Number.isInteger(userId) || userId < 1) return res.status(400).json({ message: 'Mã bệnh nhân không hợp lệ!' })
     if (req.user.role === 'patient' && req.user.id !== userId) return res.status(403).json({ message: 'Bạn chỉ có thể xem chỉ số của mình.' })
-    if (!['patient', 'doctor'].includes(req.user.role)) return res.status(403).json({ message: 'Bạn không có quyền xem chỉ số.' })
+    if (!['patient', 'doctor', 'receptionist'].includes(req.user.role)) return res.status(403).json({ message: 'Bạn không có quyền xem chỉ số.' })
 
     const vitals = await db.prepare(`
       SELECT id, user_id AS userId, weight, systolic, diastolic, heart_rate AS heartRate, spo2,
-        dyspnea, edema, chest_pain AS chestPain, created_at AS createdAt
+        dyspnea, edema, chest_pain AS chestPain, created_at AS createdAt, visit_id AS visitId
       FROM vitals WHERE user_id = ? ORDER BY id DESC
     `).all(userId)
     res.json({ vitals })
@@ -285,19 +262,32 @@ app.get('/api/visits/mine', authenticateToken, allowRoles('patient'), async (req
 
 app.get('/api/visits/queue', authenticateToken, allowRoles('doctor', 'receptionist'), async (req, res) => {
   const date = req.query.date || new Date().toISOString().slice(0, 10)
+  // Bác sĩ chỉ thấy những lượt khám đã được nhân viên y tế chuyển cho mình.
+  const doctorOnly = req.user.role === 'doctor'
   const rows = await db.prepare(`
-    SELECT visits.*, patients.patient_code, users.full_name AS patient_name, doctors.full_name AS doctor_name
+    SELECT visits.*, patients.patient_code, users.full_name AS patient_name, doctors.full_name AS doctor_name,
+      v.weight AS vital_weight, v.systolic AS vital_systolic, v.diastolic AS vital_diastolic,
+      v.heart_rate AS vital_heart_rate, v.spo2 AS vital_spo2, v.dyspnea AS vital_dyspnea,
+      v.edema AS vital_edema, v.chest_pain AS vital_chest_pain, v.created_at AS vital_recorded_at,
+      recorder.full_name AS vital_recorded_by
     FROM visits
     JOIN users ON users.id = visits.patient_id
     LEFT JOIN patients ON patients.user_id = visits.patient_id
     LEFT JOIN users doctors ON doctors.id = visits.doctor_id
-    WHERE visits.visit_date = ?
+    LEFT JOIN vitals v ON v.id = (SELECT id FROM vitals WHERE visit_id = visits.id ORDER BY id DESC LIMIT 1)
+    LEFT JOIN users recorder ON recorder.id = v.recorded_by
+    WHERE visits.visit_date = ? ${doctorOnly ? "AND visits.doctor_id = ? AND visits.status <> 'registered'" : ''}
     ORDER BY CASE visits.status
       WHEN 'in_progress' THEN 1 WHEN 'called' THEN 2 WHEN 'waiting' THEN 3
       WHEN 'registered' THEN 4 ELSE 5 END, visits.queue_number, visits.id
-  `).all(date)
+  `).all(...(doctorOnly ? [date, req.user.id] : [date]))
   const visits = await Promise.all(rows.map((v) => visitDetails(v)))
   res.json({ visits, date })
+})
+
+app.get('/api/doctors', authenticateToken, allowRoles('receptionist', 'patient'), async (req, res) => {
+  const doctors = await db.prepare("SELECT id, full_name AS fullName FROM users WHERE role = 'doctor' ORDER BY full_name").all()
+  res.json({ doctors })
 })
 
 app.get('/api/visits/:id/clinical-support', authenticateToken, allowRoles('doctor'), async (req, res) => {
@@ -317,9 +307,12 @@ app.get('/api/visits/:id/clinical-support', authenticateToken, allowRoles('docto
 app.post('/api/visits/:id/mock-hospital-data', authenticateToken, allowRoles('doctor'), async (req, res) => {
   const visit = await db.prepare('SELECT * FROM visits WHERE id = ?').get(req.params.id)
   if (!visit) return res.status(404).json({ message: 'Không tìm thấy lượt khám!' })
+  const measured = await db.prepare('SELECT * FROM vitals WHERE visit_id = ? ORDER BY id DESC LIMIT 1').get(visit.id)
   const payload = {
     patientId: visit.patient_id, visitId: visit.id,
-    vitals: { bloodPressure: '145/90', heartRate: 96, spo2: 94, weight: 68.5 },
+    vitals: measured
+      ? { bloodPressure: `${measured.systolic}/${measured.diastolic}`, heartRate: measured.heart_rate, spo2: measured.spo2, weight: measured.weight }
+      : { bloodPressure: '145/90', heartRate: 96, spo2: 94, weight: 68.5 },
     medications: ['Bisoprolol 2.5 mg', 'Furosemide 40 mg'],
     note: 'Dữ liệu mẫu phục vụ trình diễn AI-CDSS',
   }
@@ -405,14 +398,39 @@ app.post('/api/visits/reception', authenticateToken, allowRoles('receptionist'),
   }
 })
 
-app.post('/api/visits/:id/check-in', authenticateToken, allowRoles('doctor', 'receptionist'), async (req, res) => {
-  const visit = await db.prepare('SELECT * FROM visits WHERE id = ?').get(req.params.id)
-  if (!visit) return res.status(404).json({ message: 'Không tìm thấy lượt khám!' })
-  const nextQueue = (await db.prepare('SELECT COALESCE(MAX(queue_number), 0) + 1 AS next FROM visits WHERE visit_date = ?').get(visit.visit_date)).next
-  await db.prepare("UPDATE visits SET doctor_id = ?, room = ?, queue_number = ?, status = 'waiting' WHERE id = ?").run(req.user.id, req.body.room || 'Phòng khám Tim mạch 01', nextQueue, visit.id)
-  await addNotification(visit.patient_id, 'Đã tiếp nhận lượt khám', `Bạn đã được cấp số thứ tự ${nextQueue}. Vui lòng theo dõi hàng đợi.`, 'success')
-  const updated = await db.prepare('SELECT * FROM visits WHERE id = ?').get(visit.id)
-  res.json({ visit: await visitDetails(updated) })
+// Nhân viên y tế tiếp nhận: đo sinh hiệu, cấp số và chuyển lượt khám cho bác sĩ.
+app.post('/api/visits/:id/check-in', authenticateToken, allowRoles('receptionist'), async (req, res) => {
+  try {
+    const visit = await db.prepare('SELECT * FROM visits WHERE id = ?').get(req.params.id)
+    if (!visit) return res.status(404).json({ message: 'Không tìm thấy lượt khám!' })
+    if (visit.status !== 'registered') return res.status(409).json({ message: 'Lượt khám này đã được tiếp nhận.' })
+
+    const vitals = parseVitals(req.body.vitals)
+    if (!vitals) return res.status(400).json({ message: 'Vui lòng nhập đầy đủ và đúng các chỉ số sinh hiệu!' })
+
+    const doctor = await db.prepare("SELECT id, full_name FROM users WHERE id = ? AND role = 'doctor'").get(Number(req.body.doctorId))
+    if (!doctor) return res.status(400).json({ message: 'Vui lòng chọn bác sĩ phụ trách!' })
+
+    const room = req.body.room || visit.room || 'Phòng khám Tim mạch 01'
+    const nextQueue = (await db.prepare('SELECT COALESCE(MAX(queue_number), 0) + 1 AS next FROM visits WHERE visit_date = ?').get(visit.visit_date)).next
+
+    await db.prepare(`
+      INSERT INTO vitals (user_id, visit_id, recorded_by, weight, systolic, diastolic, heart_rate, spo2, dyspnea, edema, chest_pain)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(visit.patient_id, visit.id, req.user.id, vitals.weight, vitals.systolic, vitals.diastolic, vitals.heartRate, vitals.spo2,
+      vitals.dyspnea ? 1 : 0, vitals.edema ? 1 : 0, vitals.chestPain ? 1 : 0)
+    await db.prepare("UPDATE visits SET doctor_id = ?, room = ?, queue_number = ?, status = 'waiting' WHERE id = ?").run(doctor.id, room, nextQueue, visit.id)
+
+    await addNotification(visit.patient_id, 'Đã tiếp nhận lượt khám', `Bạn đã được cấp số thứ tự ${nextQueue}, khám với BS. ${doctor.full_name} tại ${room}. Vui lòng theo dõi hàng đợi.`, 'success')
+    const patient = await db.prepare('SELECT full_name FROM users WHERE id = ?').get(visit.patient_id)
+    await addNotification(doctor.id, 'Có bệnh nhân mới trong hàng đợi', `${patient?.full_name || 'Bệnh nhân'} (số ${nextQueue}) đã được đo sinh hiệu và chuyển đến ${room}.`, 'info')
+
+    const updated = await db.prepare('SELECT * FROM visits WHERE id = ?').get(visit.id)
+    res.json({ visit: await visitDetails(updated) })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Không thể tiếp nhận lượt khám!' })
+  }
 })
 
 app.post('/api/visits/:id/call', authenticateToken, allowRoles('doctor'), async (req, res) => {

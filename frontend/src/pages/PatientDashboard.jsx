@@ -1,7 +1,6 @@
 function PatientDashboard({
   user,
   onLogout, 
-  onAddVitals,
   onViewHistory,
   onViewMedication,
   onViewAppointments,
@@ -22,7 +21,6 @@ function PatientDashboard({
 
         <nav>
           <button className="nav-item active">⌂ Tổng quan</button>
-          <button className="nav-item" onClick={onAddVitals}>＋ Ghi nhận chỉ số</button>
           <button className="nav-item" onClick={onViewHistory}>▥ Lịch sử sức khỏe</button>
           <button className="nav-item" onClick={onViewMedication}>💊 Đơn thuốc</button>
           <button className="nav-item" onClick={onViewAppointments}>▣ Lịch tái khám</button>
@@ -56,15 +54,15 @@ function PatientDashboard({
             <strong>
             {hasAlert
                 ? "Phát hiện chỉ số cần được theo dõi"
-              : hasVitals ? "Tình trạng hiện tại ổn định" : "Bạn chưa ghi nhận chỉ số"}
+              : hasVitals ? "Tình trạng hiện tại ổn định" : "Chưa có chỉ số sinh hiệu"}
             </strong>
 
             <p>
             {hasAlert
-                ? "Một số chỉ số hoặc triệu chứng bạn vừa ghi nhận nằm ngoài ngưỡng theo dõi. Vui lòng làm theo hướng dẫn của cơ sở y tế và chờ nhân viên y tế đánh giá."
+                ? "Một số chỉ số hoặc triệu chứng được ghi nhận ở lần khám gần nhất nằm ngoài ngưỡng theo dõi. Vui lòng làm theo hướng dẫn của cơ sở y tế và chờ nhân viên y tế đánh giá."
                 : hasVitals
                   ? "Các chỉ số gần nhất của bạn đang trong giới hạn theo dõi."
-                  : "Gửi lần đo đầu tiên để bác sĩ có thể theo dõi tình trạng của bạn."}
+                  : "Sinh hiệu sẽ được nhân viên y tế đo và cập nhật khi bạn đến khám."}
             </p>
         </div>
         </div>
@@ -73,14 +71,11 @@ function PatientDashboard({
           <div className="section-title">
             <div>
               <h2>Chỉ số gần nhất</h2>
-              <p>{vitals.createdAt ? `Gửi lúc ${new Date(vitals.createdAt).toLocaleString('vi-VN')}` : 'Chưa có lần gửi nào'}</p>
+              <p>{vitals.createdAt ? `Đo lúc ${new Date(vitals.createdAt).toLocaleString('vi-VN')}` : 'Chưa có lần đo nào'}</p>
             </div>
 
             <button className="primary-action" onClick={onViewBookVisit}>
               + Đăng ký khám
-            </button>
-            <button className="primary-action" onClick={onAddVitals}>
-              + Ghi nhận chỉ số
             </button>
           </div>
 
