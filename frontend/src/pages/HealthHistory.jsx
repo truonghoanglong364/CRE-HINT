@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react'
+import {
+  ArrowLeftIcon,
+  ScaleIcon,
+  BloodPressureIcon,
+  PulseIcon,
+  OxygenIcon,
+  CalendarIcon
+} from '../components/Icons'
 
 function HealthHistory({ vitals, user, onBack }) {
   const [records, setRecords] = useState([])
+  const [loading, setLoading] = useState(true)
+
   const latestVitals = records[0] || (vitals.weight != null ? vitals : null)
   const previousVitals = records[1]
 
@@ -10,14 +20,17 @@ function HealthHistory({ vitals, user, onBack }) {
 
     const loadHistory = async () => {
       try {
+        setLoading(true)
         const response = await fetch(
           `/api/vitals?userId=${user.id}`,
           { headers: { Authorization: `Bearer ${user.token}` } }
         )
         const data = await response.json()
-        if (response.ok) setRecords(data.vitals)
+        if (response.ok) setRecords(data.vitals || [])
       } catch (error) {
         console.error('Không thể tải lịch sử sức khỏe:', error)
+      } finally {
+        setLoading(false)
       }
     }
 
@@ -27,149 +40,173 @@ function HealthHistory({ vitals, user, onBack }) {
   return (
     <div className="health-history-page">
       <div className="health-history-container">
-
         <button className="back-button" onClick={onBack}>
-          ← Quay lại tổng quan
+          <ArrowLeftIcon size={16} />
+          <span>Quay lại trang tổng quan</span>
         </button>
 
         <div className="history-page-header">
           <div>
-            <h1>Lịch sử sức khỏe</h1>
-            <p>Theo dõi sự thay đổi các chỉ số sức khỏe theo thời gian.</p>
+            <h1>Lịch sử diễn tiến sinh hiệu</h1>
+            <p>Theo dõi sự thay đổi cân nặng, huyết áp, nhịp tim và triệu chứng theo thời gian.</p>
           </div>
 
-          <div className="history-patient">
-            <div className="small-avatar">NA</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className="small-avatar">
+              {user?.fullName?.slice(0, 2).toUpperCase() || 'BN'}
+            </div>
             <div>
-              <strong>{user?.fullName || 'Bệnh nhân'}</strong>
-              <span>Lịch sử ghi nhận của bạn</span>
+              <strong style={{ display: 'block', color: 'var(--slate-900)' }}>{user?.fullName || 'Bệnh nhân'}</strong>
+              <span style={{ fontSize: '12px', color: 'var(--slate-400)' }}>Hồ sơ cá nhân</span>
             </div>
           </div>
         </div>
 
-        <section className="history-summary-grid">
-          <SummaryCard
-            title="Cân nặng hiện tại"
-            value={`${latestVitals?.weight ?? '--'} kg`}
-            previous={previousVitals ? `${previousVitals.weight} kg` : 'Chưa có'}
-          />
+        {/* Comparison Summary Cards */}
+        <div className="vital-grid" style={{ marginBottom: '28px' }}>
+          <div className="vital-card">
+            <div className="vital-top">
+              <span className="vital-icon"><ScaleIcon size={20} /></span>
+              <span className="normal-badge">So với lần trước</span>
+            </div>
+            <p>Cân nặng hiện tại</p>
+            <div className="vital-value-row">
+              <strong>{latestVitals?.weight ?? '--'}</strong>
+              <span className="unit">kg</span>
+            </div>
+            <small style={{ color: 'var(--slate-400)', marginTop: '8px', display: 'block' }}>
+              Lần trước: {previousVitals ? `${previousVitals.weight} kg` : 'Chưa có'}
+            </small>
+          </div>
 
-          <SummaryCard
-            title="Huyết áp gần nhất"
-            value={`${latestVitals?.systolic ?? '--'}/${latestVitals?.diastolic ?? '--'}`}
-            previous={previousVitals ? `${previousVitals.systolic}/${previousVitals.diastolic} mmHg` : 'Chưa có'}
-          />
+          <div className="vital-card">
+            <div className="vital-top">
+              <span className="vital-icon"><BloodPressureIcon size={20} /></span>
+              <span className="normal-badge">Huyết áp đo</span>
+            </div>
+            <p>Huyết áp gần nhất</p>
+            <div className="vital-value-row">
+              <strong>{latestVitals?.systolic != null ? `${latestVitals.systolic}/${latestVitals.diastolic}` : '--'}</strong>
+              <span className="unit">mmHg</span>
+            </div>
+            <small style={{ color: 'var(--slate-400)', marginTop: '8px', display: 'block' }}>
+              Lần trước: {previousVitals ? `${previousVitals.systolic}/${previousVitals.diastolic} mmHg` : 'Chưa có'}
+            </small>
+          </div>
 
-          <SummaryCard
-            title="Nhịp tim"
-            value={`${latestVitals?.heartRate ?? '--'} bpm`}
-            previous={previousVitals ? `${previousVitals.heartRate} bpm` : 'Chưa có'}
-          />
+          <div className="vital-card">
+            <div className="vital-top">
+              <span className="vital-icon"><PulseIcon size={20} /></span>
+              <span className="normal-badge">Nhịp tim</span>
+            </div>
+            <p>Nhịp tim khi nghỉ</p>
+            <div className="vital-value-row">
+              <strong>{latestVitals?.heartRate ?? '--'}</strong>
+              <span className="unit">bpm</span>
+            </div>
+            <small style={{ color: 'var(--slate-400)', marginTop: '8px', display: 'block' }}>
+              Lần trước: {previousVitals ? `${previousVitals.heartRate} bpm` : 'Chưa có'}
+            </small>
+          </div>
 
-          <SummaryCard
-            title="SpO₂"
-            value={`${latestVitals?.spo2 ?? '--'}%`}
-            previous={previousVitals ? `${previousVitals.spo2}%` : 'Chưa có'}
-          />
-        </section>
+          <div className="vital-card">
+            <div className="vital-top">
+              <span className="vital-icon"><OxygenIcon size={20} /></span>
+              <span className="normal-badge">SpO₂</span>
+            </div>
+            <p>Độ bão hòa oxy</p>
+            <div className="vital-value-row">
+              <strong>{latestVitals?.spo2 ?? '--'}</strong>
+              <span className="unit">%</span>
+            </div>
+            <small style={{ color: 'var(--slate-400)', marginTop: '8px', display: 'block' }}>
+              Lần trước: {previousVitals ? `${previousVitals.spo2}%` : 'Chưa có'}
+            </small>
+          </div>
+        </div>
 
-        <section className="health-history-card">
-          <div className="history-card-heading">
+        {/* Detailed Records Table */}
+        <section className="feature-card">
+          <div className="section-title">
             <div>
-              <h2>Lịch sử ghi nhận</h2>
-              <p>{records.length} lần ghi nhận</p>
+              <h2>Toàn bộ các lần đo đã ghi nhận ({records.length})</h2>
+              <p>Dữ liệu được lưu trữ tự động và bác sĩ chuyên khoa có thể theo dõi trực tiếp.</p>
             </div>
-
-            <select>
-              <option>7 ngày gần nhất</option>
-              <option>30 ngày gần nhất</option>
-            </select>
           </div>
 
-          <div className="full-history-table">
+          {loading && (
+            <p style={{ color: 'var(--slate-500)', padding: '20px 0' }}>Đang nạp lịch sử đo...</p>
+          )}
 
-            <div className="full-history-header">
-              <span>Thời gian</span>
-              <span>Cân nặng</span>
-              <span>Huyết áp</span>
-              <span>Nhịp tim</span>
-              <span>SpO₂</span>
-              <span>Trạng thái</span>
+          {!loading && records.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--slate-400)' }}>
+              <p>Chưa có dữ liệu đo nào được ghi nhận. Sinh hiệu sẽ được nhân viên y tế đo khi bạn đến khám.</p>
             </div>
+          )}
 
-            {records.map((record) => (
-              <HistoryItem
-                key={record.id}
-                date={new Date(record.createdAt).toLocaleDateString('vi-VN')}
-                time={new Date(record.createdAt).toLocaleTimeString('vi-VN')}
-                weight={`${record.weight} kg`}
-                bp={`${record.systolic}/${record.diastolic}`}
-                heart={`${record.heartRate} bpm`}
-                spo2={`${record.spo2}%`}
-                warning={isAbnormalReading(record)}
-              />
-            ))}
+          {!loading && records.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ background: 'var(--slate-50)', borderBottom: '1.5px solid var(--slate-200)', color: 'var(--slate-500)', fontSize: '12px', textTransform: 'uppercase' }}>
+                    <th style={{ padding: '12px 16px' }}>Thời gian</th>
+                    <th style={{ padding: '12px 16px' }}>Cân nặng</th>
+                    <th style={{ padding: '12px 16px' }}>Huyết áp</th>
+                    <th style={{ padding: '12px 16px' }}>Nhịp tim</th>
+                    <th style={{ padding: '12px 16px' }}>SpO₂</th>
+                    <th style={{ padding: '12px 16px' }}>Triệu chứng kèm theo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.map((r, idx) => {
+                    const syms = []
+                    if (r.dyspnea) syms.push('Khó thở')
+                    if (r.edema) syms.push('Phù chi')
+                    if (r.chestPain) syms.push('Đau ngực')
 
-            {records.length === 0 && (
-              <p>{user ? 'Chưa có chỉ số sinh hiệu nào được ghi nhận.' : 'Đang tải lịch sử...'}</p>
-            )}
-
-          </div>
+                    return (
+                      <tr
+                        key={r.id}
+                        style={{
+                          borderBottom: '1px solid var(--slate-100)',
+                          background: idx === 0 ? 'var(--primary-50)' : 'transparent'
+                        }}
+                      >
+                        <td style={{ padding: '14px 16px', fontWeight: idx === 0 ? 'bold' : 'normal' }}>
+                          {new Date(r.createdAt).toLocaleString('vi-VN')} {idx === 0 ? '(Mới nhất)' : ''}
+                        </td>
+                        <td style={{ padding: '14px 16px', fontWeight: 'bold' }}>
+                          {r.weight} kg
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          {r.systolic}/{r.diastolic} mmHg
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          {r.heartRate} bpm
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          {r.spo2}%
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          {syms.length > 0 ? (
+                            <span style={{ color: 'var(--danger-700)', fontWeight: 'bold' }}>
+                              ⚠ {syms.join(', ')}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--slate-400)' }}>Không có</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
-
       </div>
-    </div>
-  )
-}
-
-function SummaryCard({ title, value, previous }) {
-  return (
-    <div className="history-summary-card">
-      <p>{title}</p>
-      <strong>{value}</strong>
-      <span>Trước đó: {previous}</span>
-    </div>
-  )
-}
-
-function HistoryItem({
-  date,
-  time,
-  weight,
-  bp,
-  heart,
-  spo2,
-  warning = false,
-}) {
-  return (
-    <div className={warning ? 'full-history-row warning-row' : 'full-history-row'}>
-      <div>
-        <strong>{date}</strong>
-        <small>{time}</small>
-      </div>
-
-      <span>{weight}</span>
-      <span>{bp}</span>
-      <span>{heart}</span>
-      <span>{spo2}</span>
-
-      <span className={warning ? 'history-warning' : 'history-normal'}>
-        {warning ? '● Cần chú ý' : '● Bình thường'}
-      </span>
     </div>
   )
 }
 
 export default HealthHistory
-
-function isAbnormalReading(record) {
-  return (
-    record.weight >= 68.8 ||
-    record.systolic >= 160 ||
-    record.heartRate >= 100 ||
-    record.spo2 <= 93 ||
-    Boolean(record.dyspnea) ||
-    Boolean(record.edema) ||
-    Boolean(record.chestPain)
-  )
-}
