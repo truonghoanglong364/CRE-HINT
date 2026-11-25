@@ -8,6 +8,7 @@ import {
   OxygenIcon,
   AlertTriangleIcon
 } from '../components/Icons'
+import { SLOT_LABELS, SKIP_REASON_LABELS, adherenceTone, formatShortDate, formatSlots } from '../medication'
 
 const EMPTY_VITALS = {
   weight: null,
@@ -22,6 +23,7 @@ const EMPTY_VITALS = {
 
 function PatientDetail({ patient, authToken, vitals, hasAlert, onBack }) {
   const [history, setHistory] = useState([])
+  const [medReport, setMedReport] = useState(null)
   const [exporting, setExporting] = useState(false)
   const currentVitals = patient
     ? patient.weight != null ? patient : EMPTY_VITALS
@@ -47,7 +49,20 @@ function PatientDetail({ patient, authToken, vitals, hasAlert, onBack }) {
       }
     }
 
+    const loadMedications = async () => {
+      try {
+        const response = await fetch(`/api/patients/${patient.userId}/medications?days=7`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        })
+        const data = await response.json()
+        if (response.ok) setMedReport(data)
+      } catch (error) {
+        console.error('Không thể tải dữ liệu dùng thuốc:', error)
+      }
+    }
+
     loadHistory()
+    loadMedications()
   }, [patient?.userId, authToken])
 
   const exportRecord = async () => {
@@ -106,7 +121,14 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
           if (v.reason) html += `<p><strong>Lý do đến khám:</strong> ${v.reason}</p>`
           if (v.examNotes) html += `<p><strong>Khám lâm sàng:</strong> ${v.examNotes}</p>`
           if (v.resultText) html += `<p><strong>Kết luận chẩn đoán:</strong> ${v.resultText}</p>`
-          if (v.prescription) html += `<p><strong>Đơn thuốc chỉ định:</strong><br>${v.prescription.replace(/\n/g, '<br>')}</p>`
+          if (v.prescriptionItems?.length) {
+            html += `<p><strong>Đơn thuốc chỉ định:</strong></p><table><tr><th>Thuốc</th><th>Liều</th><th>Buổi uống</th><th>Thời gian</th><th>Cách dùng</th></tr>`
+            for (const item of v.prescriptionItems) {
+              html += `<tr><td>${escapeHtml(item.drugName)}</td><td>${escapeHtml(item.dose)}</td><td>${formatSlots(item.slots)}</td><td>${item.durationDays ? `${item.durationDays} ngày` : 'Dài hạn'}</td><td>${escapeHtml(item.instructions)}</td></tr>`
+            }
+            html += `</table>`
+          }
+          if (v.prescription) html += `<p><strong>Lời dặn & hướng dẫn:</strong><br>${v.prescription.replace(/\n/g, '<br>')}</p>`
           if (v.followUpAt) html += `<p><strong>Lịch tái khám:</strong> ${v.followUpAt}</p>`
           html += `</div>`
         }
@@ -299,20 +321,13 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 
           <section className="feature-card">
             <h2 style={{ fontSize: '18px', color: 'var(--slate-900)', marginBottom: '14px' }}>
-              Đơn thuốc duy trì hiện tại
+              Đơn thuốc đang dùng
             </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ padding: '10px 14px', background: 'var(--slate-50)', borderRadius: 'var(--radius-md)', border: '1px solid var(--slate-200)' }}>
-                <strong style={{ fontSize: '14px', color: 'var(--slate-900)' }}>Furosemide 40 mg</strong>
-                <p style={{ margin: 0, fontSize: '12px', color: 'var(--slate-500)' }}>Thuốc lợi tiểu · 1 viên/ngày · Uống buổi sáng sau ăn</p>
-              </div>
-              <div style={{ padding: '10px 14px', background: 'var(--slate-50)', borderRadius: 'var(--radius-md)', border: '1px solid var(--slate-200)' }}>
-                <strong style={{ fontSize: '14px', color: 'var(--slate-900)' }}>Bisoprolol 2.5 mg</strong>
-                <p style={{ margin: 0, fontSize: '12px', color: 'var(--slate-500)' }}>Chẹn beta giao cảm · 1 viên/ngày · Uống buổi sáng</p>
-              </div>
-            </div>
+            <CurrentMedications report={medReport} />
           </section>
         </div>
+
+        {medReport && <MedicationAdherence report={medReport} />}
 
         {/* History Table */}
         <section className="feature-card">
@@ -381,6 +396,130 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
         </section>
       </div>
     </div>
+  )
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
+
+function CurrentMedications({ report }) {
+  if (!report) return <p className="med-muted">Đang tải đơn thuốc...</p>
+  const current = report.medications.filter((m) => m.current)
+  if (current.length === 0) {
+    return <p className="med-muted">Bệnh nhân chưa có đơn thuốc đang dùng.</p>
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {current.map((med) => (
+        <div key={med.id} style={{ padding: '10px 14px', background: 'var(--slate-50)', borderRadius: 'var(--radius-md)', border: '1px solid var(--slate-200)' }}>
+          <strong style={{ fontSize: '14px', color: 'var(--slate-900)' }}>{med.drugName} {med.dose}</strong>
+          <p style={{ margin: 0, fontSize: '12px', color: 'var(--slate-500)' }}>
+            {formatSlots(med.slots)} · {med.endDate ? `đến ${formatShortDate(med.endDate)}` : 'dài hạn'}
+            {med.instructions ? ` · ${med.instructions}` : ''}
+          </p>
+        </div>
+      ))}
+      <small style={{ color: 'var(--slate-400)' }}>
+        Kê bởi BS. {current[0].prescribedByName || '—'} từ {formatShortDate(current[0].startDate)}
+      </small>
+    </div>
+  )
+}
+
+const CELL_ICONS = { taken: '✓', skipped: '✕', missed: '!', pending: '○' }
+const CELL_TITLES = { taken: 'Đã uống', skipped: 'Bỏ liều (có báo)', missed: 'Bỏ lỡ (không ghi nhận)', pending: 'Chưa đến giờ / chưa ghi nhận' }
+
+function MedicationAdherence({ report }) {
+  const rows = report.medications
+    .filter((med) => Object.keys(med.cells).length > 0)
+    .flatMap((med) => med.slots.map((slot) => ({ med, slot })))
+  const skips = rows.flatMap(({ med, slot }) =>
+    report.dates
+      .filter((date) => med.cells[date]?.[slot]?.status === 'skipped')
+      .map((date) => ({ date, slot, med, ...med.cells[date][slot] })))
+    .sort((a, b) => b.date.localeCompare(a.date))
+  const { summary } = report
+
+  return (
+    <section className="feature-card">
+      <div className="section-title">
+        <div>
+          <h2>Theo dõi dùng thuốc 7 ngày</h2>
+          <p>Bệnh nhân tự ghi nhận từng liều trên ứng dụng. Liều quá ngày không ghi nhận được tính là bỏ lỡ.</p>
+        </div>
+        <span className={`adherence-chip tone-${adherenceTone(summary.adherence)}`}>
+          Tuân thủ: {summary.adherence != null ? `${summary.adherence}%` : '—'}
+        </span>
+      </div>
+
+      {report.alerts.length > 0 && (
+        <div className="adherence-alerts">
+          {report.alerts.map((alert, i) => <div key={i}>⚠ {alert.message}</div>)}
+        </div>
+      )}
+
+      {rows.length === 0 ? (
+        <p className="med-muted">Chưa có dữ liệu dùng thuốc trong 7 ngày qua.</p>
+      ) : (
+        <>
+          <div className="adherence-stats">
+            <span className="stat-taken">✓ Đã uống: <b>{summary.taken}</b></span>
+            <span className="stat-skipped">✕ Bỏ liều có báo: <b>{summary.skipped}</b></span>
+            <span className="stat-missed">! Bỏ lỡ: <b>{summary.missed}</b></span>
+            <span className="stat-pending">○ Chưa đến giờ: <b>{summary.pending}</b></span>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table className="adherence-grid">
+              <thead>
+                <tr>
+                  <th>Thuốc · buổi</th>
+                  {report.dates.map((date) => (
+                    <th key={date} className={date === report.today ? 'is-today' : ''}>
+                      {date === report.today ? 'Hôm nay' : formatShortDate(date)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ med, slot }) => (
+                  <tr key={`${med.id}-${slot}`}>
+                    <td>
+                      <strong>{med.drugName}</strong> {med.dose}
+                      <small> · {SLOT_LABELS[slot]}{med.current ? '' : ' · đơn cũ'}</small>
+                    </td>
+                    {report.dates.map((date) => {
+                      const cell = med.cells[date]?.[slot]
+                      if (!cell) return <td key={date} className="cell-none" />
+                      const detail = cell.status === 'skipped'
+                        ? `${CELL_TITLES.skipped}: ${SKIP_REASON_LABELS[cell.skipReason]}${cell.note ? ` – ${cell.note}` : ''}`
+                        : CELL_TITLES[cell.status]
+                      return (
+                        <td key={date} className={`cell-${cell.status}`} title={detail}>
+                          {CELL_ICONS[cell.status]}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {skips.length > 0 && (
+            <div className="skip-log">
+              <strong>Nhật ký bỏ liều do bệnh nhân báo</strong>
+              {skips.map((s) => (
+                <div key={`${s.med.id}-${s.date}-${s.slot}`} className={s.skipReason === 'side_effect' ? 'skip-side-effect' : ''}>
+                  {formatShortDate(s.date)} · {SLOT_LABELS[s.slot]} · <b>{s.med.drugName}</b> — {SKIP_REASON_LABELS[s.skipReason]}{s.note ? `: ${s.note}` : ''}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </section>
   )
 }
 

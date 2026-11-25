@@ -4,6 +4,7 @@ import {
   SearchIcon,
   UsersIcon
 } from '../components/Icons'
+import { adherenceTone } from '../medication'
 
 function PatientList({ user, onBack, onViewPatient }) {
   const [patients, setPatients] = useState([])
@@ -194,6 +195,7 @@ function PatientList({ user, onBack, onViewPatient }) {
                     <th style={{ padding: '14px 20px' }}>Liên hệ</th>
                     <th style={{ padding: '14px 20px' }}>Chỉ số đo gần nhất</th>
                     <th style={{ padding: '14px 20px' }}>Đánh giá an toàn</th>
+                    <th style={{ padding: '14px 20px' }}>Tuân thủ thuốc 7 ngày</th>
                     <th style={{ padding: '14px 20px', textAlign: 'right' }}>Thao tác</th>
                   </tr>
                 </thead>
@@ -262,6 +264,19 @@ function PatientList({ user, onBack, onViewPatient }) {
                             <span style={{ fontSize: '12px', color: 'var(--slate-400)' }}>
                               ● Chưa có dữ liệu
                             </span>
+                          )}
+                        </td>
+
+                        <td style={{ padding: '16px 20px' }}>
+                          {patient.medicationAdherence != null ? (
+                            <span
+                              className={`adherence-chip tone-${adherenceTone(patient.medicationAdherence)}`}
+                              title={patient.medicationAlerts?.join('\n') || undefined}
+                            >
+                              {patient.medicationAlerts?.length > 0 && '⚠ '}{patient.medicationAdherence}%
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '12px', color: 'var(--slate-400)' }}>Chưa có đơn thuốc</span>
                           )}
                         </td>
 

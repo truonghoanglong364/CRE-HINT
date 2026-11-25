@@ -7,6 +7,7 @@ import {
   BellIcon,
   PlusIcon
 } from '../components/Icons'
+import { formatDuration, formatSlots } from '../medication'
 
 const statusLabels = {
   registered: 'Đã gửi đăng ký',
@@ -219,7 +220,7 @@ function VisitCard({ visit }) {
         </div>
       )}
 
-      {visit.prescription && (
+      {(visit.prescription_items?.length > 0 || visit.prescription) && (
         <div
           style={{
             background: 'var(--success-50)',
@@ -229,10 +230,29 @@ function VisitCard({ visit }) {
             margin: '10px 0'
           }}
         >
-          <strong style={{ fontSize: '13px', color: 'var(--success-800)', display: 'block', marginBottom: '4px' }}>
-            Đơn thuốc & Hướng dẫn:
-          </strong>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--slate-700)', whiteSpace: 'pre-line' }}>{visit.prescription}</p>
+          {visit.prescription_items?.length > 0 && (
+            <>
+              <strong style={{ fontSize: '13px', color: 'var(--success-700)', display: 'block', marginBottom: '4px' }}>
+                Đơn thuốc ({visit.prescription_items.length} loại):
+              </strong>
+              <ol style={{ margin: '0 0 8px', paddingLeft: '20px', fontSize: '13px', color: 'var(--slate-700)' }}>
+                {visit.prescription_items.map((item) => (
+                  <li key={item.id}>
+                    <b>{item.drugName}</b> {item.dose} · {formatSlots(item.slots)} · {formatDuration(item)}
+                    {item.instructions ? ` · ${item.instructions}` : ''}
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
+          {visit.prescription && (
+            <>
+              <strong style={{ fontSize: '13px', color: 'var(--success-700)', display: 'block', marginBottom: '4px' }}>
+                Lời dặn & hướng dẫn:
+              </strong>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--slate-700)', whiteSpace: 'pre-line' }}>{visit.prescription}</p>
+            </>
+          )}
         </div>
       )}
 

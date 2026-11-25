@@ -149,6 +149,7 @@ const handleLogin = async (e) => {
     if (currentPage === 'medication') {
       return (
         <Medication
+          user={loggedInUser}
           onBack={() => setCurrentPage('dashboard')}
         />
       )

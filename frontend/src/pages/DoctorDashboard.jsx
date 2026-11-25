@@ -61,6 +61,7 @@ function DoctorDashboard({
   const alertPatients = reportingPatients.filter(hasAbnormalReading)
   const stablePatients = reportingPatients.length - alertPatients.length
   const newestAlert = alertPatients[0]
+  const attentionCount = patients.filter((p) => (p.weight != null && hasAbnormalReading(p)) || p.medicationAlerts?.length > 0).length
   const recentPatients = reportingPatients.slice(0, 5)
 
   return (
@@ -87,8 +88,8 @@ function DoctorDashboard({
           <button className="nav-item" onClick={onViewAlerts}>
             <AlertTriangleIcon size={18} />
             <span>Cảnh báo bất thường</span>
-            {alertPatients.length > 0 && (
-              <b className="alert-count">{alertPatients.length}</b>
+            {attentionCount > 0 && (
+              <b className="alert-count">{attentionCount}</b>
             )}
           </button>
           <button className="nav-item" onClick={onViewAppointments}>

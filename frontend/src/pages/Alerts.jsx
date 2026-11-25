@@ -28,7 +28,7 @@ function Alerts({ user, onBack, onViewPatient }) {
   }, [user.token])
 
   const reportingPatients = patients.filter((patient) => patient.weight != null)
-  const alertPatients = reportingPatients.filter(isAbnormalReading)
+  const alertPatients = patients.filter(needsAttention)
 
   return (
     <div className="alerts-page">
@@ -64,7 +64,7 @@ function Alerts({ user, onBack, onViewPatient }) {
 
           <div className="stat-card stat-success">
             <p className="stat-label">Bệnh nhân an toàn</p>
-            <p className="stat-value">{reportingPatients.length - alertPatients.length}</p>
+            <p className="stat-value">{reportingPatients.filter((p) => !needsAttention(p)).length}</p>
             <p className="stat-desc">Sinh hiệu trong ngưỡng</p>
           </div>
 
@@ -148,10 +148,13 @@ function Alerts({ user, onBack, onViewPatient }) {
                     </span>
                   </div>
 
-                  <p style={{ fontSize: '12px', color: 'var(--slate-400)', margin: '0 0 10px' }}>
-                    Gửi lần cuối: {new Date(patient.lastSubmittedAt).toLocaleString('vi-VN')}
-                  </p>
+                  {patient.lastSubmittedAt && (
+                    <p style={{ fontSize: '12px', color: 'var(--slate-400)', margin: '0 0 10px' }}>
+                      Đo lần cuối: {new Date(patient.lastSubmittedAt).toLocaleString('vi-VN')}
+                    </p>
+                  )}
 
+                  {patient.weight != null && (
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
                     <span style={{ background: 'var(--slate-50)', border: '1px solid var(--slate-200)', padding: '4px 10px', borderRadius: 'var(--radius-md)', fontSize: '13px' }}>
                       Cân nặng: <strong style={{ color: patient.weight >= 68.8 ? 'var(--danger)' : 'inherit' }}>{patient.weight} kg</strong>
@@ -166,6 +169,7 @@ function Alerts({ user, onBack, onViewPatient }) {
                       SpO₂: <strong style={{ color: patient.spo2 <= 93 ? 'var(--danger)' : 'inherit' }}>{patient.spo2}%</strong>
                     </span>
                   </div>
+                  )}
 
                   <div style={{ fontSize: '13px', color: 'var(--danger-700)', fontWeight: '500' }}>
                     <strong>Dấu hiệu bất thường: </strong>
@@ -190,15 +194,25 @@ function Alerts({ user, onBack, onViewPatient }) {
   )
 }
 
+function needsAttention(patient) {
+  return (patient.weight != null && isAbnormalReading(patient)) || patient.medicationAlerts?.length > 0
+}
+
 function getReasons(patient) {
   const reasons = []
-  if (patient.weight >= 68.8) reasons.push('Cân nặng tăng nguy cơ ứ dịch')
-  if (patient.systolic >= 160) reasons.push('Tăng huyết áp tâm thu')
-  if (patient.heartRate >= 100) reasons.push('Nhịp tim nhanh')
-  if (patient.spo2 <= 93) reasons.push('SpO₂ giảm')
-  if (patient.dyspnea) reasons.push('Khó thở khi gắng sức')
-  if (patient.edema) reasons.push('Phù chi dưới')
-  if (patient.chestPain) reasons.push('Đau tức ngực')
+  if (patient.weight != null) {
+    if (patient.weight >= 68.8) reasons.push('Cân nặng tăng nguy cơ ứ dịch')
+    if (patient.systolic >= 160) reasons.push('Tăng huyết áp tâm thu')
+    if (patient.heartRate >= 100) reasons.push('Nhịp tim nhanh')
+    if (patient.spo2 <= 93) reasons.push('SpO₂ giảm')
+    if (patient.dyspnea) reasons.push('Khó thở khi gắng sức')
+    if (patient.edema) reasons.push('Phù chi dưới')
+    if (patient.chestPain) reasons.push('Đau tức ngực')
+  }
+  if (patient.medicationAdherence != null && patient.medicationAlerts?.length > 0) {
+    reasons.push(`Tuân thủ thuốc 7 ngày ${patient.medicationAdherence}%`)
+  }
+  reasons.push(...(patient.medicationAlerts || []))
   return reasons.length ? reasons : ['Chỉ số bất thường']
 }
 

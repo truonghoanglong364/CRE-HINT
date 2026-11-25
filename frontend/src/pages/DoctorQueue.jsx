@@ -264,12 +264,15 @@ function DoctorQueue({ user, onBack, onOpenSupport }) {
               </div>
 
               <div className="form-group">
-                <label>Đơn thuốc và hướng dẫn dùng</label>
+                <label>Lời dặn & hướng dẫn</label>
                 <textarea
                   value={form.prescription}
                   onChange={(e) => setForm({ ...form, prescription: e.target.value })}
-                  placeholder="Tên thuốc, liều lượng, số lần dùng trong ngày và dặn dò chế độ ăn giảm muối..."
+                  placeholder="Chế độ ăn giảm muối, theo dõi cân nặng, dấu hiệu cần tái khám ngay..."
                 />
+                <small style={{ color: 'var(--slate-500)', fontSize: '12px' }}>
+                  Kê đơn thuốc từng dòng tại trang AI-CDSS (mục 3) để đơn được đồng bộ sang lịch uống thuốc của bệnh nhân.
+                </small>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginTop: '12px' }}>

@@ -260,6 +260,63 @@ async function initDatabase() {
       FOREIGN KEY (saved_by) REFERENCES users(id) ON DELETE SET NULL
     )
   `)
+  const versionColumns = (await db.prepare('PRAGMA table_info(visit_versions)').all()).map((c) => c.name)
+  if (!versionColumns.includes('prescription_items_json')) await client.execute('ALTER TABLE visit_versions ADD COLUMN prescription_items_json TEXT')
+
+  // --- Prescriptions & medication adherence ---
+  // slots: comma-separated subset of morning,noon,afternoon,evening
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS prescription_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      visit_id INTEGER NOT NULL,
+      drug_name TEXT NOT NULL,
+      dose TEXT,
+      slots TEXT NOT NULL,
+      duration_days INTEGER,
+      instructions TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (visit_id) REFERENCES visits(id) ON DELETE CASCADE
+    )
+  `)
+
+  // A published prescription is copied here so dose logs survive later edits to the visit draft.
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS patient_medications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_id INTEGER NOT NULL,
+      visit_id INTEGER,
+      prescribed_by INTEGER,
+      drug_name TEXT NOT NULL,
+      dose TEXT,
+      slots TEXT NOT NULL,
+      instructions TEXT,
+      start_date TEXT NOT NULL,
+      end_date TEXT,
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'stopped')),
+      stopped_at TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (visit_id) REFERENCES visits(id) ON DELETE SET NULL,
+      FOREIGN KEY (prescribed_by) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `)
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS medication_doses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      medication_id INTEGER NOT NULL,
+      patient_id INTEGER NOT NULL,
+      dose_date TEXT NOT NULL,
+      slot TEXT NOT NULL CHECK(slot IN ('morning', 'noon', 'afternoon', 'evening')),
+      status TEXT NOT NULL CHECK(status IN ('taken', 'skipped')),
+      skip_reason TEXT,
+      note TEXT,
+      recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (medication_id, dose_date, slot),
+      FOREIGN KEY (medication_id) REFERENCES patient_medications(id) ON DELETE CASCADE,
+      FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `)
 
   await client.execute(`
     CREATE TABLE IF NOT EXISTS result_templates (

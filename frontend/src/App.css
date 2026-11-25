@@ -1583,3 +1583,107 @@
 .visit-vitals span { padding: 3px 8px; border-radius: 6px; background: var(--slate-100); color: var(--slate-700); font-size: 12px; font-weight: 600; }
 .visit-vitals .vital-flag { background: var(--danger-50); color: var(--danger-700); }
 @media (max-width: 600px) { .vitals-intake-grid { grid-template-columns: 1fr; } }
+
+/* Kê đơn thuốc từng dòng (bác sĩ) */
+.rx-editor { display: flex; flex-direction: column; gap: 10px; }
+.rx-empty { margin: 0; font-size: 13px; color: var(--slate-500); font-style: italic; }
+.rx-row { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1.5px solid var(--slate-200); border-radius: var(--radius-lg); background: var(--slate-50); }
+.rx-index { width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; background: var(--primary-100); color: var(--primary-700); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 6px; }
+.rx-fields { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rx-line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.rx-line input { padding: 8px 10px; border: 1.5px solid var(--slate-200); border-radius: var(--radius-md); font-size: 13px; background: white; min-width: 0; }
+.rx-line input:focus { outline: none; border-color: var(--primary); }
+.rx-name { flex: 1.3 1 160px; font-weight: 600; }
+.rx-dose { flex: 1 1 150px; }
+.rx-days { width: 90px; }
+.rx-days-unit { font-size: 12px; color: var(--slate-500); }
+.rx-instructions { flex: 1 1 200px; }
+.rx-slots { display: flex; gap: 4px; }
+.rx-slot { padding: 6px 10px; border: 1.5px solid var(--slate-200); border-radius: var(--radius-pill); background: white; color: var(--slate-600); font-size: 12px; font-weight: 600; cursor: pointer; }
+.rx-slot.active { background: var(--primary-600); border-color: var(--primary-600); color: white; }
+.rx-remove { border: none; background: none; color: var(--slate-400); font-size: 20px; line-height: 1; cursor: pointer; padding: 4px 6px; }
+.rx-remove:hover { color: var(--danger-600); }
+.rx-add { align-self: flex-start; padding: 8px 14px; border: 1.5px dashed var(--primary-200); border-radius: var(--radius-md); background: var(--primary-50); color: var(--primary-700); font-size: 13px; font-weight: 600; cursor: pointer; }
+
+/* Tỷ lệ tuân thủ */
+.adherence-chip { display: inline-block; padding: 4px 12px; border-radius: var(--radius-pill); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.adherence-chip.tone-good { background: var(--success-100); color: var(--success-700); }
+.adherence-chip.tone-fair { background: var(--warning-100); color: var(--warning-700); }
+.adherence-chip.tone-poor { background: var(--danger-100); color: var(--danger-700); }
+.adherence-chip.tone-none { background: var(--slate-100); color: var(--slate-500); }
+
+/* Đơn thuốc & lịch uống thuốc (bệnh nhân) */
+.med-rule { display: flex; gap: 16px; align-items: flex-start; padding: 18px 22px; background: var(--primary-50); border: 1.5px solid var(--primary-200); border-radius: var(--radius-xl); margin-bottom: 24px; }
+.med-rule-icon { width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--radius-md); background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; }
+.med-rule strong { display: block; margin-bottom: 4px; font-size: 15px; color: var(--slate-900); }
+.med-rule p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--slate-600); }
+.med-error { padding: 10px 14px; border-radius: var(--radius-md); background: var(--danger-50); color: var(--danger-700); font-size: 13px; }
+.med-muted { color: var(--slate-500); font-size: 13px; font-style: italic; margin: 0; }
+.med-empty { text-align: center; color: var(--slate-500); }
+.med-empty h2 { font-size: 18px; color: var(--slate-800); margin-bottom: 6px; }
+
+.med-slot-group + .med-slot-group { margin-top: 18px; }
+.med-slot-group h3 { font-size: 14px; color: var(--slate-800); margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+.med-slot-group h3 span { color: var(--slate-400); font-weight: 600; text-transform: none; letter-spacing: 0; }
+
+.dose-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; margin-bottom: 8px; border: 1.5px solid var(--slate-200); border-radius: var(--radius-lg); background: white; }
+.dose-row.dose-taken { background: var(--success-50); border-color: var(--success-200); }
+.dose-row.dose-skipped { background: var(--warning-50); border-color: var(--warning-200); }
+.dose-info { flex: 1; min-width: 200px; }
+.dose-info strong { font-size: 15px; color: var(--slate-900); }
+.dose-info strong span { font-weight: 500; color: var(--slate-600); font-size: 13px; }
+.dose-info p { margin: 2px 0 0; font-size: 12.5px; color: var(--slate-500); }
+.dose-info .dose-skip-note { color: var(--warning-700); font-weight: 600; }
+.dose-info .dose-error { color: var(--danger-700); }
+.dose-actions { display: flex; gap: 6px; align-items: center; }
+.dose-actions button { padding: 7px 14px; border-radius: var(--radius-md); border: none; font-size: 13px; font-weight: 700; cursor: pointer; }
+.dose-actions button:disabled { opacity: 0.6; cursor: wait; }
+.dose-take { background: var(--success); color: white; }
+.dose-skip { background: white; color: var(--warning-700); border: 1.5px solid var(--warning-200) !important; }
+.dose-undo { background: none; color: var(--slate-500); text-decoration: underline; padding: 7px 6px !important; }
+.dose-badge { font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: var(--radius-pill); }
+.dose-badge.badge-taken { background: var(--success-100); color: var(--success-700); }
+.dose-badge.badge-skipped { background: var(--warning-100); color: var(--warning-700); }
+.dose-skip-form { width: 100%; display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.dose-skip-form input { padding: 8px 10px; border: 1.5px solid var(--slate-200); border-radius: var(--radius-md); font-size: 13px; }
+.dose-skip-form small { font-size: 12px; color: var(--danger-700); }
+.dose-reasons { display: flex; gap: 6px; flex-wrap: wrap; }
+.dose-reasons button { padding: 6px 12px; border: 1.5px solid var(--slate-200); border-radius: var(--radius-pill); background: white; font-size: 12.5px; font-weight: 600; color: var(--slate-600); cursor: pointer; }
+.dose-reasons button.active { background: var(--warning-100); border-color: var(--warning-200); color: var(--warning-700); }
+
+.med-list { display: flex; flex-direction: column; gap: 12px; }
+.med-card { display: flex; gap: 16px; align-items: flex-start; padding: 16px 18px; border: 1.5px solid var(--slate-200); border-radius: var(--radius-xl); background: var(--bg-surface); }
+.med-rx { width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--radius-lg); background: var(--primary-50); color: var(--primary-700); font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.med-card-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+.med-card-head h3 { margin: 0; font-size: 17px; color: var(--slate-900); }
+.med-card-head h3 span { font-size: 14px; font-weight: 500; color: var(--slate-600); }
+.med-time { font-size: 13px; font-weight: 700; color: var(--primary); }
+.med-instructions { margin: 6px 0 0; font-size: 13.5px; color: var(--slate-700); }
+.med-period { margin: 4px 0 0; font-size: 12px; color: var(--slate-400); }
+.med-history { display: flex; flex-direction: column; }
+.med-history-row { display: grid; grid-template-columns: 1.2fr 1fr 1.4fr; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--slate-100); font-size: 13px; color: var(--slate-600); }
+.med-history-row strong { color: var(--slate-800); }
+
+/* Theo dõi dùng thuốc (bác sĩ) */
+.adherence-alerts { display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; margin-bottom: 14px; border-radius: var(--radius-md); background: var(--danger-50); border: 1px solid var(--danger-200); color: var(--danger-700); font-size: 13.5px; font-weight: 600; }
+.adherence-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.adherence-stats span { padding: 4px 10px; border-radius: var(--radius-md); background: var(--slate-50); border: 1px solid var(--slate-200); font-size: 12.5px; color: var(--slate-600); }
+.adherence-stats .stat-taken b { color: var(--success-700); }
+.adherence-stats .stat-skipped b { color: var(--warning-700); }
+.adherence-stats .stat-missed b { color: var(--danger-700); }
+.adherence-grid { width: 100%; border-collapse: collapse; font-size: 13px; }
+.adherence-grid th { padding: 8px 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; color: var(--slate-500); background: var(--slate-50); border-bottom: 1.5px solid var(--slate-200); text-align: center; white-space: nowrap; }
+.adherence-grid th:first-child { text-align: left; padding-left: 12px; }
+.adherence-grid th.is-today { color: var(--primary-700); }
+.adherence-grid td { padding: 8px 6px; border-bottom: 1px solid var(--slate-100); text-align: center; font-weight: 800; }
+.adherence-grid td:first-child { text-align: left; font-weight: 500; padding-left: 12px; white-space: nowrap; color: var(--slate-700); }
+.adherence-grid td:first-child small { color: var(--slate-400); }
+.adherence-grid .cell-taken { color: var(--success-700); background: var(--success-50); }
+.adherence-grid .cell-skipped { color: var(--warning-700); background: var(--warning-50); cursor: help; }
+.adherence-grid .cell-missed { color: var(--danger-700); background: var(--danger-50); }
+.adherence-grid .cell-pending { color: var(--slate-400); }
+.adherence-grid .cell-none { background: repeating-linear-gradient(45deg, transparent, transparent 4px, var(--slate-50) 4px, var(--slate-50) 8px); }
+.skip-log { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--slate-600); }
+.skip-log strong { color: var(--slate-800); }
+.skip-log .skip-side-effect { color: var(--danger-700); }
+@media (max-width: 640px) { .med-history-row { grid-template-columns: 1fr; gap: 2px; } }

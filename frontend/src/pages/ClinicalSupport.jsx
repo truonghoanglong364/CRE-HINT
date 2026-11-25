@@ -4,6 +4,8 @@ import {
   SparklesIcon,
   RefreshCwIcon
 } from '../components/Icons'
+import PrescriptionEditor from '../components/PrescriptionEditor'
+import { toApiItems, toEditorItems, validateItems } from '../medication'
 
 const AI_BLOCKS = [
   { key: 'diagnosis', title: 'Chẩn đoán gợi ý (Diagnosis)', tag: 'Khả năng cao', fillsDraft: 'resultText' },
@@ -12,7 +14,7 @@ const AI_BLOCKS = [
   { key: 'med_safety', title: 'An toàn dùng thuốc (MedSafety)', tag: 'Cảnh báo an toàn' },
 ]
 
-const DRAFT_FIELD_LABELS = { resultText: 'Kết luận chẩn đoán', prescription: 'Đơn thuốc và lời dặn' }
+const DRAFT_FIELD_LABELS = { resultText: 'Kết luận chẩn đoán', prescription: 'Lời dặn & hướng dẫn' }
 
 const REVIEW_STATUS_LABELS = {
   pending: 'Đang duyệt',
@@ -36,6 +38,7 @@ function ClinicalSupport({ user, visit, onBack }) {
     prescription: '',
     followUpAt: ''
   })
+  const [rxItems, setRxItems] = useState([])
   const [message, setMessage] = useState('')
   const [templates, setTemplates] = useState([])
   const [newTemplateName, setNewTemplateName] = useState('')
@@ -59,6 +62,7 @@ function ClinicalSupport({ user, visit, onBack }) {
           followUpAt: next.visit.follow_up_at || ''
         })
       }
+      setRxItems(toEditorItems(next.prescriptionItems))
     } catch (err) {
       setMessage(err.message)
     }
@@ -192,23 +196,37 @@ function ClinicalSupport({ user, visit, onBack }) {
   }
 
   const saveDraft = async () => {
-    await fetch(`/api/visits/${visit.id}/draft`, {
+    const invalid = validateItems(rxItems)
+    if (invalid) {
+      setMessage(`Chưa lưu được: ${invalid}`)
+      return false
+    }
+    const response = await fetch(`/api/visits/${visit.id}/draft`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify(draft)
+      body: JSON.stringify({ ...draft, items: toApiItems(rxItems) })
     })
+    if (!response.ok) {
+      const result = await response.json()
+      setMessage(`Chưa lưu được: ${result.message}`)
+      return false
+    }
     setMessage('Đã lưu bản nháp kết quả khám.')
     await load()
+    return true
   }
 
   const publish = async () => {
-    await saveDraft()
-    await fetch(`/api/visits/${visit.id}/publish`, {
+    if (!(await saveDraft())) return
+    const response = await fetch(`/api/visits/${visit.id}/publish`, {
       method: 'POST',
       headers,
       body: '{}'
     })
-    setMessage('Đã phê duyệt và công bố hồ sơ cho bệnh nhân thành công!')
+    const result = await response.json()
+    setMessage(result.syncedMedications
+      ? `Đã công bố cho bệnh nhân và đồng bộ ${result.syncedMedications} loại thuốc vào lịch uống thuốc của bệnh nhân.`
+      : 'Đã công bố cho bệnh nhân. Không có thuốc mới nên đơn đang dùng được giữ nguyên.')
     await load()
   }
 
@@ -500,11 +518,16 @@ function ClinicalSupport({ user, visit, onBack }) {
           </div>
 
           <div className="form-group">
-            <label>Đơn thuốc và lời dặn</label>
+            <label>Đơn thuốc (đồng bộ sang lịch uống thuốc của bệnh nhân khi công bố)</label>
+            <PrescriptionEditor items={rxItems} onChange={setRxItems} />
+          </div>
+
+          <div className="form-group">
+            <label>Lời dặn & hướng dẫn</label>
             <textarea
               value={draft.prescription}
               onChange={(e) => setDraft({ ...draft, prescription: e.target.value })}
-              placeholder="Danh mục thuốc điều trị và hướng dẫn liều dùng..."
+              placeholder="Chế độ ăn, theo dõi cân nặng, dấu hiệu cần tái khám ngay..."
             />
           </div>
 

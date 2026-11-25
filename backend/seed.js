@@ -12,6 +12,15 @@
 
 const bcrypt = require('bcryptjs')
 const { db, initDatabase } = require('./database')
+const meds = require('./medications')
+
+const rx = (drugName, dose, slots, durationDays, instructions) => ({ drugName, dose, slots, durationDays, instructions })
+const BISOPROLOL = rx('Bisoprolol', '2.5 mg × 1 viên', ['morning'], null, 'Uống sau ăn sáng. Đếm mạch trước khi uống, báo bác sĩ nếu dưới 50 lần/phút.')
+const FUROSEMIDE = rx('Furosemide', '40 mg × 1 viên', ['morning'], null, 'Uống buổi sáng để tránh tiểu đêm. Cân nặng mỗi sáng.')
+const ENALAPRIL = rx('Enalapril', '5 mg × 1 viên', ['evening'], null, 'Báo bác sĩ nếu ho khan kéo dài hoặc sưng môi, mặt.')
+const SPIRONOLACTONE = rx('Spironolactone', '25 mg × 1 viên', ['morning'], null, 'Xét nghiệm kali máu theo lịch hẹn.')
+const ATORVASTATIN = rx('Atorvastatin', '20 mg × 1 viên', ['evening'], null, 'Uống buổi tối, sau ăn.')
+const SLOT_TIMES = { morning: '08:05', noon: '12:10', afternoon: '16:30', evening: '20:15' }
 
 const today = new Date().toISOString().slice(0, 10)
 const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
@@ -46,6 +55,9 @@ async function upsertPatient({ fullName, email, dateOfBirth, gender, phone, addr
 
 async function clearDemoData() {
   // Wipe everything except reference tables
+  await db.prepare('DELETE FROM medication_doses').run()
+  await db.prepare('DELETE FROM patient_medications').run()
+  await db.prepare('DELETE FROM prescription_items').run()
   await db.prepare('DELETE FROM visit_versions').run()
   await db.prepare('DELETE FROM ai_block_reviews').run()
   await db.prepare('DELETE FROM ai_support').run()
@@ -128,7 +140,7 @@ async function seed() {
     { patient: p8, status: 'completed',   queue: 6, room: 'Phòng khám Tim mạch 01', reason: 'Khám sau xuất viện 2 tuần', priority: 'normal',
       exam_notes: 'BN tỉnh, tiếp xúc tốt. Tiếng tim T1, T2 rõ. Rale ẩm 2 đáy phổi giảm so với lần trước.',
       result_text: 'Suy tim NYHA II ổn định. Chức năng tâm thu cải thiện so với đợt xuất viện.',
-      prescription: '1. Bisoprolol 2.5 mg - 1 viên/ngày (sáng)\n2. Furosemide 40 mg - 1 viên/ngày (sáng)\n3. Spironolactone 25 mg - 1 viên/ngày\n4. Hạn chế muối <2g/ngày, theo dõi cân nặng hàng sáng',
+      prescription: 'Hạn chế muối <2g/ngày, theo dõi cân nặng hàng sáng.',
       follow_up_at: inAWeek + 'T08:30',
       result_status: 'published',
       vital: { weight: 58.4, systolic: 128, diastolic: 78, heart_rate: 76, spo2: 97, dyspnea: 0, edema: 0, chest_pain: 0 }
@@ -222,16 +234,19 @@ async function seed() {
   console.log('Tạo các phiên bản backup của lượt khám BN0001...')
   const versions = [
     { v: 1, exam: 'BN tỉnh, tiếp xúc tốt. Tiếng tim T1, T2 đều. Phù mắt cá chân 2 bên.', result: 'Đang theo dõi.', prescription: '', status: 'draft', hours: -4 },
-    { v: 2, exam: 'BN tỉnh, tiếp xúc tốt. Tiếng tim T1 mờ, T2 đều. Rale ẩm 2 đáy phổi. Phù chi dưới 2+.', result: 'Suy tim NYHA III, nghi mất bù cấp.', prescription: '1. Furosemide 80 mg\n2. Bisoprolol 2.5 mg', status: 'draft', hours: -2 },
-    { v: 3, exam: 'BN tỉnh, tiếp xúc tốt. HA 158/92. Rale ẩm 2 đáy giảm sau lợi tiểu. Phù chi dưới 2+.', result: 'Suy tim mạn mất bù cấp (NYHA III) do BTTMCB, EF 42%.', prescription: '1. Furosemide 80 mg/ngày × 5 ngày\n2. Bisoprolol 2.5 mg/ngày\n3. Enalapril 5 mg/ngày\n4. Hạn chế muối <2g/ngày, dịch 1.5L/ngày', status: 'draft', hours: -1 },
+    { v: 2, exam: 'BN tỉnh, tiếp xúc tốt. Tiếng tim T1 mờ, T2 đều. Rale ẩm 2 đáy phổi. Phù chi dưới 2+.', result: 'Suy tim NYHA III, nghi mất bù cấp.', prescription: 'Hạn chế muối <2g/ngày.', status: 'draft', hours: -2,
+      items: [rx('Furosemide', '40 mg × 2 viên', ['morning'], 5, 'Liều tăng tạm thời.'), BISOPROLOL] },
+    { v: 3, exam: 'BN tỉnh, tiếp xúc tốt. HA 158/92. Rale ẩm 2 đáy giảm sau lợi tiểu. Phù chi dưới 2+.', result: 'Suy tim mạn mất bù cấp (NYHA III) do BTTMCB, EF 42%.', prescription: 'Hạn chế muối <2g/ngày, dịch 1.5L/ngày. Cân mỗi sáng, báo ngay nếu tăng >1kg/ngày hoặc khó thở tăng.', status: 'draft', hours: -1,
+      items: [rx('Furosemide', '40 mg × 2 viên', ['morning'], 5, 'Liều tăng tạm thời trong 5 ngày, sau đó quay lại 1 viên/ngày.'), BISOPROLOL, ENALAPRIL] },
   ]
   for (const ver of versions) {
     const createdAt = new Date(Date.now() + ver.hours * 3600000).toISOString()
     await db.prepare(`
-      INSERT INTO visit_versions (visit_id, version_no, exam_notes, result_text, prescription, follow_up_at, result_status, saved_by, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(focusVisitId, ver.v, ver.exam, ver.result, ver.prescription, inAWeek + 'T08:30', ver.status, doctorId, createdAt)
+      INSERT INTO visit_versions (visit_id, version_no, exam_notes, result_text, prescription, follow_up_at, result_status, saved_by, created_at, prescription_items_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(focusVisitId, ver.v, ver.exam, ver.result, ver.prescription, inAWeek + 'T08:30', ver.status, doctorId, createdAt, ver.items ? JSON.stringify(ver.items) : null)
   }
+  await meds.replacePrescriptionItems(db, focusVisitId, versions[2].items)
   // Update current visit with latest draft content
   await db.prepare(`
     UPDATE visits SET exam_notes = ?, result_text = ?, prescription = ?, follow_up_at = ?, icd_code = ?, icd_description = ?, result_version = 3 WHERE id = ?
@@ -268,22 +283,36 @@ async function seed() {
       .run(p1.userId, n.title, n.message, n.type, createdAt)
   }
 
-  console.log('Thêm các lượt khám hoàn tất trong quá khứ (dùng cho lịch sử & kết quả bệnh nhân BN0001)...')
+  console.log('Thêm các lượt khám đã công bố trong quá khứ, kèm đơn thuốc...')
+  // Chronological order matters: each published prescription replaces the patient's previous one.
   const pastVisits = [
+    { patient: p1, date: meds.addDays(today, -14), reason: 'Khám định kỳ suy tim',
+      exam_notes: 'BN tiếp xúc tốt, không khó thở lúc nghỉ. HA 135/82.',
+      result_text: 'Suy tim NYHA II ổn định với phác đồ hiện tại.',
+      prescription: 'Hạn chế muối <2g/ngày. Cân nặng mỗi sáng.',
+      follow_up_at: yesterday + 'T08:00',
+      items: [BISOPROLOL, FUROSEMIDE, ENALAPRIL] },
+    { patient: p2, date: meds.addDays(today, -10), reason: 'Tái khám sau đợt cấp suy tim',
+      exam_notes: 'Không phù, phổi không rale. HA 128/78.',
+      result_text: 'Suy tim NYHA I-II, đáp ứng tốt điều trị.',
+      prescription: 'Duy trì chế độ ăn nhạt, đi bộ nhẹ 20 phút/ngày.',
+      follow_up_at: tomorrow + 'T08:00',
+      items: [BISOPROLOL, FUROSEMIDE, SPIRONOLACTONE] },
+    { patient: p3, date: meds.addDays(today, -6), reason: 'Khó thở, đau tức ngực khi gắng sức',
+      exam_notes: 'Phù chi dưới 1+, rale ẩm đáy phổi phải. HA 165/95.',
+      result_text: 'Suy tim kèm tăng huyết áp chưa kiểm soát, rối loạn lipid máu.',
+      prescription: 'Đo huyết áp 2 lần/ngày và ghi sổ. Tái khám ngay nếu đau ngực tăng.',
+      follow_up_at: inAWeek + 'T08:00',
+      items: [BISOPROLOL, rx('Furosemide', '40 mg × 1 viên', ['morning', 'afternoon'], null, 'Không uống sau 17h.'), ATORVASTATIN] },
     { patient: p1, date: yesterday, reason: 'Khám cấp cứu vì khó thở',
       exam_notes: 'Khó thở khi gắng sức nhẹ. Rale ẩm 2 đáy phổi. Phù chi dưới 2+.',
       result_text: 'Suy tim mạn đợt cấp. Đã xử trí lợi tiểu tại khoa cấp cứu, triệu chứng cải thiện.',
-      prescription: '1. Furosemide 40 mg - 2 viên/ngày × 3 ngày\n2. Bisoprolol 2.5 mg - 1 viên/ngày\n3. Theo dõi sát tại nhà, nhập viện nếu khó thở tăng',
-      follow_up_at: today + 'T08:00' },
-    { patient: p1, date: new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10),
-      reason: 'Khám định kỳ suy tim',
-      exam_notes: 'BN tiếp xúc tốt, không khó thở lúc nghỉ. HA 135/82.',
-      result_text: 'Suy tim NYHA II ổn định với phác đồ hiện tại.',
-      prescription: '1. Bisoprolol 2.5 mg/ngày\n2. Furosemide 40 mg/ngày',
-      follow_up_at: yesterday + 'T08:00' },
+      prescription: 'Theo dõi sát tại nhà, vào viện ngay nếu khó thở tăng.',
+      follow_up_at: today + 'T08:00',
+      items: [rx('Furosemide', '40 mg × 1 viên', ['morning', 'afternoon'], 5, 'Liều tăng tạm thời trong 5 ngày. Không uống sau 17h.'), BISOPROLOL, ENALAPRIL] },
   ]
   for (const pv of pastVisits) {
-    await db.prepare(`
+    const result = await db.prepare(`
       INSERT INTO visits (patient_id, doctor_id, visit_date, specialty, reason, room, queue_number, status, priority,
         exam_notes, result_text, prescription, follow_up_at, result_status, published_at, completed_at)
       VALUES (?, ?, ?, 'Tim mạch', ?, 'Phòng khám Tim mạch 01', ?, 'completed', 'normal', ?, ?, ?, ?, 'published', ?, ?)
@@ -291,7 +320,57 @@ async function seed() {
       Math.floor(Math.random() * 10) + 1,
       pv.exam_notes, pv.result_text, pv.prescription, pv.follow_up_at,
       new Date(pv.date).toISOString(), new Date(pv.date).toISOString())
+    await meds.replacePrescriptionItems(db, result.lastInsertRowid, pv.items)
+    await meds.activatePrescription(db, { id: result.lastInsertRowid, patient_id: pv.patient.userId }, doctorId, pv.date)
   }
+
+  // BN0008's visit was published this morning.
+  const p8VisitId = visitIds[p8.patientCode]
+  await meds.replacePrescriptionItems(db, p8VisitId, [BISOPROLOL, rx('Furosemide', '40 mg × 1 viên', ['morning'], 30, 'Uống buổi sáng. Cân nặng mỗi sáng.'), SPIRONOLACTONE])
+  await meds.activatePrescription(db, { id: p8VisitId, patient_id: p8.userId }, doctorId, today)
+
+  console.log('Tạo nhật ký dùng thuốc 7 ngày...')
+  // decide() returns a dose record, or null to leave the dose missed (past) / pending (today).
+  const logDoses = async (patient, decide) => {
+    const report = await meds.medicationReport(db, patient.userId)
+    for (const med of report.medications) {
+      for (const [date, slots] of Object.entries(med.cells)) {
+        for (const slot of Object.keys(slots)) {
+          const isToday = date === today
+          const record = decide(med.drugName, date, slot, isToday)
+          if (!record) continue
+          await db.prepare(`
+            INSERT INTO medication_doses (medication_id, patient_id, dose_date, slot, status, skip_reason, note, recorded_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(med.id, patient.userId, date, slot, record.status, record.reason || null, record.note || null, `${date}T${SLOT_TIMES[slot]}:00`)
+        }
+      }
+    }
+  }
+  const taken = { status: 'taken' }
+  const morningOnlyToday = (slot, isToday) => !isToday || slot === 'morning'
+
+  const p1Exceptions = {
+    [`Enalapril|${meds.addDays(today, -3)}|evening`]: null,
+    [`Enalapril|${meds.addDays(today, -2)}|evening`]: { status: 'skipped', reason: 'forgot' },
+    [`Furosemide|${yesterday}|afternoon`]: { status: 'skipped', reason: 'side_effect', note: 'Đi tiểu nhiều, chóng mặt khi đứng dậy' },
+  }
+  await logDoses(p1, (drug, date, slot, isToday) => {
+    const key = `${drug}|${date}|${slot}`
+    if (key in p1Exceptions) return p1Exceptions[key]
+    return morningOnlyToday(slot, isToday) ? taken : null
+  })
+  await logDoses(p2, (drug, date, slot, isToday) => {
+    if (drug === 'Spironolactone' && date === meds.addDays(today, -4)) return null
+    return morningOnlyToday(slot, isToday) ? taken : null
+  })
+  await logDoses(p3, (drug, date, slot, isToday) => {
+    if (isToday) return null
+    if (drug === 'Atorvastatin' && date === meds.addDays(today, -2)) return { status: 'skipped', reason: 'out_of_stock' }
+    const dayIndex = Number(date.slice(-2))
+    return slot === 'morning' && dayIndex % 2 === 0 ? taken : null
+  })
+  await logDoses(p8, (drug, date, slot, isToday) => (isToday && slot === 'morning' ? taken : null))
 
   // Increase template usage counts so they look "used"
   const templates = await db.prepare('SELECT id FROM result_templates').all()

@@ -14,6 +14,7 @@ import {
   CheckCircleIcon,
   ChevronRightIcon
 } from '../components/Icons'
+import { SLOTS, SLOT_LABELS, fetchMyMedications, recordDose } from '../medication'
 
 function PatientDashboard({
   user,
@@ -260,38 +261,7 @@ function PatientDashboard({
             </div>
           </section>
 
-          <section className="dashboard-box">
-            <div className="box-heading">
-              <div>
-                <h2>Lịch uống thuốc hôm nay</h2>
-                <span>3 chỉ định điều trị suy tim</span>
-              </div>
-              <button
-                onClick={onViewMedication}
-                style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-              >
-                Chi tiết →
-              </button>
-            </div>
-
-            <MedicationItem
-              name="Bisoprolol 2.5 mg"
-              instruction="Uống sau ăn sáng · 08:00"
-              initialDone={true}
-            />
-
-            <MedicationItem
-              name="Furosemide 40 mg"
-              instruction="Thuốc lợi tiểu · 08:00"
-              initialDone={true}
-            />
-
-            <MedicationItem
-              name="Enalapril 5 mg"
-              instruction="Uống buổi tối · 20:00"
-              initialDone={false}
-            />
-          </section>
+          <TodayMedications user={user} onViewMedication={onViewMedication} />
         </div>
 
         {/* Appointment Card */}
@@ -404,26 +374,80 @@ function VitalCard({ icon, title, value, unit, status, isAlert }) {
   )
 }
 
-function MedicationItem({ name, instruction, initialDone }) {
-  const [done, setDone] = useState(initialDone)
+// Tapping a dose marks it taken (or undoes it). Skipping with a reason is done on the medication page.
+function TodayMedications({ user, onViewMedication }) {
+  const [report, setReport] = useState(null)
+  const [savingKey, setSavingKey] = useState(null)
+
+  useEffect(() => {
+    fetchMyMedications(user.token).then(setReport).catch(() => setReport(null))
+  }, [user.token])
+
+  const toggle = async (dose) => {
+    if (dose.status === 'skipped') return onViewMedication()
+    const key = `${dose.medicationId}-${dose.slot}`
+    setSavingKey(key)
+    try {
+      setReport(await recordDose(user.token, dose.medicationId, { slot: dose.slot, status: dose.status === 'taken' ? 'pending' : 'taken' }))
+    } catch {
+      // The medication page shows the detailed error; keep the dashboard quiet.
+    } finally {
+      setSavingKey(null)
+    }
+  }
+
+  const schedule = report?.todaySchedule || []
+  const taken = schedule.filter((d) => d.status === 'taken').length
 
   return (
-    <div className="medication" onClick={() => setDone(!done)} style={{ cursor: 'pointer' }}>
-      <div className={done ? 'medicine-check done' : 'medicine-check'}>
-        {done ? '✓' : ''}
+    <section className="dashboard-box">
+      <div className="box-heading">
+        <div>
+          <h2>Lịch uống thuốc hôm nay</h2>
+          <span>{schedule.length ? `Đã uống ${taken}/${schedule.length} liều` : 'Chưa có đơn thuốc đang dùng'}</span>
+        </div>
+        <button
+          onClick={onViewMedication}
+          style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+        >
+          Chi tiết →
+        </button>
       </div>
 
-      <div style={{ flex: 1 }}>
-        <strong style={{ textDecoration: done ? 'line-through' : 'none', color: done ? 'var(--slate-400)' : 'var(--slate-800)' }}>
-          {name}
-        </strong>
-        <p>{instruction}</p>
-      </div>
+      {schedule.length === 0 && (
+        <p style={{ fontSize: '13px', color: 'var(--slate-500)', margin: '8px 0 0' }}>
+          Đơn thuốc sẽ tự cập nhật sau khi bác sĩ công bố kết quả khám.
+        </p>
+      )}
 
-      <span className={done ? 'taken' : 'pending'}>
-        {done ? 'Đã uống' : 'Chưa uống'}
-      </span>
-    </div>
+      {schedule.map((dose) => {
+        const done = dose.status === 'taken'
+        const skipped = dose.status === 'skipped'
+        const key = `${dose.medicationId}-${dose.slot}`
+        return (
+          <div
+            key={key}
+            className="medication"
+            onClick={() => savingKey !== key && toggle(dose)}
+            style={{ cursor: 'pointer', opacity: savingKey === key ? 0.6 : 1 }}
+            title={skipped ? 'Đã bỏ liều – xem chi tiết' : done ? 'Bấm để hoàn tác' : 'Bấm để đánh dấu đã uống'}
+          >
+            <div className={done ? 'medicine-check done' : 'medicine-check'}>
+              {done ? '✓' : skipped ? '✕' : ''}
+            </div>
+            <div style={{ flex: 1 }}>
+              <strong style={{ textDecoration: done ? 'line-through' : 'none', color: done ? 'var(--slate-400)' : 'var(--slate-800)' }}>
+                {dose.drugName} {dose.dose}
+              </strong>
+              <p>{SLOT_LABELS[dose.slot]} · {SLOTS.find((s) => s.key === dose.slot)?.time}{dose.instructions ? ` · ${dose.instructions}` : ''}</p>
+            </div>
+            <span className={done ? 'taken' : 'pending'}>
+              {done ? 'Đã uống' : skipped ? 'Đã bỏ' : 'Chưa uống'}
+            </span>
+          </div>
+        )
+      })}
+    </section>
   )
 }
 

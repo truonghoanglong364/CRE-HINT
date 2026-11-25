@@ -5,6 +5,7 @@ const cors = require('cors')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const { db, initDatabase } = require('./database')
+const meds = require('./medications')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -52,16 +53,20 @@ async function visitDetails(visit) {
 
 async function publicVisit(visit) {
   const result = await visitDetails(visit)
-  if (!result || result.result_status === 'published') return result
-  return { ...result, exam_notes: null, result_text: null, prescription: null, follow_up_at: null }
+  if (!result) return result
+  if (result.result_status === 'published') {
+    return { ...result, prescription_items: await meds.getPrescriptionItems(db, result.id) }
+  }
+  return { ...result, exam_notes: null, result_text: null, prescription: null, follow_up_at: null, prescription_items: [] }
 }
 
 async function saveVisitVersion(visit, userId) {
   const nextVersion = (await db.prepare('SELECT COALESCE(MAX(version_no), 0) + 1 AS next FROM visit_versions WHERE visit_id = ?').get(visit.id)).next
+  const items = await meds.getPrescriptionItems(db, visit.id)
   await db.prepare(`
-    INSERT INTO visit_versions (visit_id, version_no, exam_notes, result_text, prescription, follow_up_at, result_status, saved_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(visit.id, nextVersion, visit.exam_notes, visit.result_text, visit.prescription, visit.follow_up_at, visit.result_status, userId)
+    INSERT INTO visit_versions (visit_id, version_no, exam_notes, result_text, prescription, follow_up_at, result_status, saved_by, prescription_items_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(visit.id, nextVersion, visit.exam_notes, visit.result_text, visit.prescription, visit.follow_up_at, visit.result_status, userId, JSON.stringify(items))
 }
 
 // =========================
@@ -205,10 +210,53 @@ app.get('/api/patients', authenticateToken, allowRoles('doctor'), async (req, re
       LEFT JOIN vitals AS latest ON latest.id = (SELECT id FROM vitals WHERE user_id = patients.user_id ORDER BY id DESC LIMIT 1)
       ORDER BY patients.id DESC
     `).all()
-    res.json({ patients })
+    const withAdherence = await Promise.all(patients.map(async (patient) => {
+      const report = await meds.medicationReport(db, patient.userId)
+      return { ...patient, medicationAdherence: report.summary.adherence, medicationAlerts: report.alerts.map((a) => a.message) }
+    }))
+    res.json({ patients: withAdherence })
   } catch (error) {
     console.error(error)
     res.status(500).json({ message: 'Không thể lấy danh sách bệnh nhân!' })
+  }
+})
+
+app.get('/api/patients/:userId/medications', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  try {
+    const days = Math.min(Math.max(Number(req.query.days) || 7, 1), 30)
+    res.json(await meds.medicationReport(db, Number(req.params.userId), { days }))
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Không thể tải dữ liệu dùng thuốc!' })
+  }
+})
+
+// =========================
+// ĐƠN THUỐC & NHẬT KÝ DÙNG THUỐC (BỆNH NHÂN)
+// =========================
+
+app.get('/api/medications/mine', authenticateToken, allowRoles('patient'), async (req, res) => {
+  try {
+    res.json(await meds.medicationReport(db, req.user.id))
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Không thể tải đơn thuốc!' })
+  }
+})
+
+app.post('/api/medications/:id/doses', authenticateToken, allowRoles('patient'), async (req, res) => {
+  try {
+    const result = await meds.recordDose(db, req.user.id, Number(req.params.id), req.body)
+    if (result.status) return res.status(result.status).json({ message: result.message })
+    if (result.skipReason === 'side_effect' && result.med.prescribed_by) {
+      const patient = await db.prepare('SELECT full_name FROM users WHERE id = ?').get(req.user.id)
+      await addNotification(result.med.prescribed_by, 'Bệnh nhân báo tác dụng phụ',
+        `${patient?.full_name || 'Bệnh nhân'} bỏ liều ${result.med.drug_name} do tác dụng phụ${result.note ? `: ${result.note}` : ''}.`, 'warning')
+    }
+    res.json(await meds.medicationReport(db, req.user.id))
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Không thể ghi nhận liều thuốc!' })
   }
 })
 
@@ -308,7 +356,8 @@ app.get('/api/visits/:id/clinical-support', authenticateToken, allowRoles('docto
   const blockReviews = aiSupport
     ? await db.prepare('SELECT * FROM ai_block_reviews WHERE ai_support_id = ?').all(aiSupport.id)
     : []
-  res.json({ visit, hospitalData, aiSupport, blockReviews, versions, labOrders })
+  const prescriptionItems = await meds.getPrescriptionItems(db, visit.id)
+  res.json({ visit, hospitalData, aiSupport, blockReviews, versions, labOrders, prescriptionItems })
 })
 
 app.post('/api/visits/:id/mock-hospital-data', authenticateToken, allowRoles('doctor'), async (req, res) => {
@@ -418,6 +467,11 @@ app.post('/api/visits/:id/ai-review/accept-all', authenticateToken, allowRoles('
 app.put('/api/visits/:id/draft', authenticateToken, allowRoles('doctor'), async (req, res) => {
   const visit = await db.prepare('SELECT * FROM visits WHERE id = ?').get(req.params.id)
   if (!visit) return res.status(404).json({ message: 'Không tìm thấy lượt khám!' })
+  if (req.body.items !== undefined) {
+    const { items, error } = meds.normalizeItems(req.body.items)
+    if (error) return res.status(400).json({ message: error })
+    await meds.replacePrescriptionItems(db, visit.id, items)
+  }
   await db.prepare("UPDATE visits SET exam_notes = ?, result_text = ?, prescription = ?, follow_up_at = ?, result_status = 'draft', result_version = result_version + 1 WHERE id = ?").run(req.body.examNotes || null, req.body.resultText || null, req.body.prescription || null, req.body.followUpAt || null, visit.id)
   const updated = await db.prepare('SELECT * FROM visits WHERE id = ?').get(visit.id)
   await saveVisitVersion(updated, req.user.id)
@@ -427,6 +481,10 @@ app.put('/api/visits/:id/draft', authenticateToken, allowRoles('doctor'), async 
 app.post('/api/visits/:id/restore-version', authenticateToken, allowRoles('doctor'), async (req, res) => {
   const version = await db.prepare('SELECT * FROM visit_versions WHERE id = ? AND visit_id = ?').get(req.body.versionId, req.params.id)
   if (!version) return res.status(404).json({ message: 'Không tìm thấy phiên bản backup!' })
+  if (version.prescription_items_json) {
+    const { items } = meds.normalizeItems(JSON.parse(version.prescription_items_json))
+    if (items) await meds.replacePrescriptionItems(db, req.params.id, items)
+  }
   await db.prepare("UPDATE visits SET exam_notes = ?, result_text = ?, prescription = ?, follow_up_at = ?, result_status = 'draft', result_version = result_version + 1 WHERE id = ?").run(version.exam_notes, version.result_text, version.prescription, version.follow_up_at, req.params.id)
   const updated = await db.prepare('SELECT * FROM visits WHERE id = ?').get(req.params.id)
   await saveVisitVersion(updated, req.user.id)
@@ -439,8 +497,13 @@ app.post('/api/visits/:id/publish', authenticateToken, allowRoles('doctor'), asy
   await db.prepare("UPDATE visits SET result_status = 'published', status = 'completed', published_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP WHERE id = ?").run(visit.id)
   const updated = await db.prepare('SELECT * FROM visits WHERE id = ?').get(visit.id)
   await saveVisitVersion(updated, req.user.id)
+  const syncedCount = await meds.activatePrescription(db, updated, req.user.id)
   await addNotification(visit.patient_id, 'Kết quả khám đã sẵn sàng', 'Bác sĩ đã xác nhận và công bố kết quả, đơn thuốc hoặc hướng dẫn sau khám.', 'success')
-  res.json({ visit: updated })
+  if (syncedCount > 0) {
+    await addNotification(visit.patient_id, 'Đơn thuốc mới đã được cập nhật',
+      `Lịch uống thuốc của bạn đã được cập nhật với ${syncedCount} loại thuốc. Đơn thuốc cũ đã được thay thế.`, 'info')
+  }
+  res.json({ visit: updated, syncedMedications: syncedCount })
 })
 
 app.post('/api/visits/reception', authenticateToken, allowRoles('receptionist'), async (req, res) => {
@@ -924,12 +987,13 @@ app.get('/api/patients/:userId/export', authenticateToken, allowRoles('doctor'),
       dyspnea: Boolean(v.dyspnea), edema: Boolean(v.edema), chestPain: Boolean(v.chest_pain),
       createdAt: v.created_at,
     })),
-    visits: visits.map((v) => ({
+    visits: await Promise.all(visits.map(async (v) => ({
       visitDate: v.visit_date, specialty: v.specialty, reason: v.reason,
       status: v.status, examNotes: v.exam_notes, resultText: v.result_text,
       prescription: v.prescription, followUpAt: v.follow_up_at,
       doctorName: v.doctor_name, completedAt: v.completed_at,
-    })),
+      prescriptionItems: await meds.getPrescriptionItems(db, v.id),
+    }))),
   })
 })
 
