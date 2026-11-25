@@ -1293,7 +1293,69 @@
   color: var(--slate-800);
   margin: 0;
   line-height: 1.5;
+  white-space: pre-line;
 }
+
+.ai-box { display: flex; flex-direction: column; gap: var(--sp-2); }
+.ai-box.review-accepted { background: var(--success-50); border-color: var(--success-200); }
+.ai-box.review-edited { background: var(--warning-50); border-color: var(--warning-200); }
+.ai-box.review-rejected { background: #fef2f2; border-color: #fecaca; }
+
+.ai-box-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.ai-box-tags { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.ai-tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; background: var(--primary-100); color: var(--primary-800); }
+.ai-tag.decision-pending { background: var(--slate-100); color: var(--slate-600); }
+.ai-tag.decision-accepted { background: var(--success-100); color: var(--success-700); }
+.ai-tag.decision-edited { background: var(--warning-100); color: var(--warning-700); }
+.ai-tag.decision-rejected { background: #fee2e2; color: #b91c1c; }
+
+.ai-box textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--text-sm);
+  background: white;
+  resize: vertical;
+}
+.ai-box textarea:focus { outline: none; border-color: var(--primary); }
+.ai-field-label { font-size: 12px; font-weight: 600; color: var(--slate-600); }
+.ai-reject-reason { font-size: 13px; color: #b91c1c; }
+.ai-original { font-size: 12px; color: var(--slate-500); }
+.ai-original summary { cursor: pointer; font-weight: 600; }
+.ai-original p { margin-top: 4px; font-size: 12px; color: var(--slate-600); font-style: italic; }
+.ai-error { font-size: 12px; color: #b91c1c; margin: 0; }
+
+.ai-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+.ai-actions button {
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: white;
+}
+.ai-actions button:disabled { opacity: 0.6; cursor: wait; }
+.ai-actions .btn-accept { background: var(--success); }
+.ai-actions .btn-edit { background: var(--warning); }
+.ai-actions .btn-reject { background: var(--danger); }
+.ai-actions .btn-ghost { background: white; color: var(--slate-600); border: 1px solid var(--slate-300); }
+
+.ai-review-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+}
+.ai-review-bar .ai-actions { margin-top: 0; }
 
 .simulation-badge {
   background: #f3e8ff;

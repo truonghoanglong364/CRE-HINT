@@ -47,6 +47,7 @@ async function upsertPatient({ fullName, email, dateOfBirth, gender, phone, addr
 async function clearDemoData() {
   // Wipe everything except reference tables
   await db.prepare('DELETE FROM visit_versions').run()
+  await db.prepare('DELETE FROM ai_block_reviews').run()
   await db.prepare('DELETE FROM ai_support').run()
   await db.prepare('DELETE FROM hospital_data').run()
   await db.prepare('DELETE FROM lab_orders').run()
@@ -190,21 +191,30 @@ async function seed() {
   `).run(focusVisitId, 'HIS/EMR Viện Tim Mạch', JSON.stringify(hospitalPayload),
     'valid', 'BNP/NT-proBNP (chưa có)', null, 'Không phát hiện bản ghi trùng')
 
-  await db.prepare(`
-    INSERT INTO ai_support (visit_id, hospital_data_id, input_summary, missing_data, diagnosis, lab_test, treatment, med_safety, review_status, doctor_feedback, confirmed_plan, reviewed_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+  const aiDiagnosis = 'Suy tim mạn mất bù cấp (NYHA III) do bệnh tim thiếu máu cục bộ, EF giảm (HFrEF 42%). Chẩn đoán phân biệt: suy tim do tăng huyết áp.'
+  const aiResult = await db.prepare(`
+    INSERT INTO ai_support (visit_id, hospital_data_id, input_summary, missing_data, diagnosis, lab_test, treatment, med_safety, review_status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
   `).run(
     focusVisitId, hdResult.lastInsertRowid,
     'HA 158/92, HR 98, SpO2 93%, EF 42%, khó thở tăng, phù chi dưới. Đang dùng Bisoprolol + Furosemide + Enalapril.',
     'Chưa có BNP/NT-proBNP và điện giải đồ cập nhật trong 7 ngày.',
-    'Suy tim mạn mất bù cấp (NYHA III) do bệnh tim thiếu máu cục bộ, EF giảm (HFrEF 42%). Chẩn đoán phân biệt: suy tim do tăng huyết áp.',
+    aiDiagnosis,
     'Đề nghị bổ sung: BNP hoặc NT-proBNP, điện giải đồ (K/Na), chức năng thận (creatinine, eGFR), siêu âm tim có đo EF, X-quang phổi để đánh giá sung huyết.',
     'Tăng Furosemide 40 → 80 mg/ngày trong 3-5 ngày, giữ Bisoprolol 2.5 mg, cân nhắc chuyển Enalapril sang Sacubitril/Valsartan khi ổn định. Hạn chế dịch 1.5L/ngày, muối <2g/ngày. Theo dõi cân nặng, HA, mạch 2 lần/ngày.',
-    'Lưu ý: Enalapril + Spironolactone tiềm ẩn tăng Kali máu - cần theo dõi điện giải mỗi 3-5 ngày. Furosemide liều cao có thể gây hạ Kali - bổ sung Kali nếu cần.',
-    'accepted',
-    'Chấp nhận phần lớn khuyến nghị. Tạm hoãn chuyển Sacubitril/Valsartan vì HA chưa ổn định. Sẽ đánh giá lại sau 1 tuần.',
-    '1. Điều chỉnh Furosemide 80 mg/ngày trong 5 ngày.\n2. Giữ Bisoprolol 2.5 mg.\n3. Chỉ định BNP, điện giải đồ, siêu âm tim lại.\n4. Theo dõi cân nặng hàng ngày, báo ngay nếu tăng >1kg/ngày.\n5. Tái khám sau 1 tuần.'
+    'Lưu ý: Enalapril + Spironolactone tiềm ẩn tăng Kali máu - cần theo dõi điện giải mỗi 3-5 ngày. Furosemide liều cao có thể gây hạ Kali - bổ sung Kali nếu cần.'
   )
+
+  // Demo mix: diagnosis accepted, treatment edited by the doctor, lab & med-safety still pending.
+  const aiId = aiResult.lastInsertRowid
+  await db.prepare(`
+    INSERT INTO ai_block_reviews (ai_support_id, block, decision, final_text, reviewed_by) VALUES (?, 'diagnosis', 'accepted', ?, ?)
+  `).run(aiId, aiDiagnosis, doctorId)
+  await db.prepare(`
+    INSERT INTO ai_block_reviews (ai_support_id, block, decision, final_text, reviewed_by) VALUES (?, 'treatment', 'edited', ?, ?)
+  `).run(aiId,
+    'Tăng Furosemide 40 → 80 mg/ngày trong 5 ngày, giữ Bisoprolol 2.5 mg, tiếp tục Enalapril 5 mg (tạm hoãn chuyển Sacubitril/Valsartan vì HA chưa ổn định, đánh giá lại sau 1 tuần). Hạn chế dịch 1.5L/ngày, muối <2g/ngày. Theo dõi cân nặng, HA, mạch 2 lần/ngày.',
+    doctorId)
 
   console.log('Tạo các phiên bản backup của lượt khám BN0001...')
   const versions = [

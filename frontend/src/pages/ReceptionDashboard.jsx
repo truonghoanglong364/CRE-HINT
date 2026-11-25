@@ -28,7 +28,7 @@ function ReceptionDashboard({ user, onLogout }) {
   const [showDirectVisit, setShowDirectVisit] = useState(false)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
-    patientEmail: '',
+    patientIdentifier: '',
     specialty: 'Tim mạch',
     reason: '',
     room: 'Phòng khám Tim mạch 01'
@@ -85,7 +85,7 @@ function ReceptionDashboard({ user, onLogout }) {
         return
       }
       setMessage('Đã tạo lượt khám trực tiếp thành công!')
-      setForm({ ...form, patientEmail: '', reason: '' })
+      setForm({ ...form, patientIdentifier: '', reason: '' })
       setShowDirectVisit(false)
       await load()
     } catch (err) {
@@ -200,12 +200,11 @@ function ReceptionDashboard({ user, onLogout }) {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '16px' }}>
                 <div className="form-group">
-                  <label>Email bệnh nhân đã có tài khoản</label>
+                  <label>Mã bệnh nhân hoặc email</label>
                   <input
-                    type="email"
-                    value={form.patientEmail}
-                    onChange={(e) => setForm({ ...form, patientEmail: e.target.value })}
-                    placeholder="ví dụ: patient@gmail.com"
+                    value={form.patientIdentifier}
+                    onChange={(e) => setForm({ ...form, patientIdentifier: e.target.value })}
+                    placeholder="ví dụ: BN0001 hoặc patient@gmail.com"
                     required
                   />
                 </div>

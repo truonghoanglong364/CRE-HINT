@@ -227,6 +227,23 @@ async function initDatabase() {
     )
   `)
 
+  // Original AI text stays in ai_support; this table holds the doctor's per-block decision.
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS ai_block_reviews (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ai_support_id INTEGER NOT NULL,
+      block TEXT NOT NULL CHECK(block IN ('diagnosis', 'lab_test', 'treatment', 'med_safety')),
+      decision TEXT NOT NULL CHECK(decision IN ('accepted', 'edited', 'rejected')),
+      final_text TEXT NOT NULL,
+      reject_reason TEXT,
+      reviewed_by INTEGER,
+      reviewed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (ai_support_id, block),
+      FOREIGN KEY (ai_support_id) REFERENCES ai_support(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `)
+
   await client.execute(`
     CREATE TABLE IF NOT EXISTS visit_versions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

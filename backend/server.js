@@ -305,7 +305,10 @@ app.get('/api/visits/:id/clinical-support', authenticateToken, allowRoles('docto
   const aiSupport = await db.prepare('SELECT * FROM ai_support WHERE visit_id = ? ORDER BY id DESC LIMIT 1').get(visit.id)
   const versions = await db.prepare('SELECT * FROM visit_versions WHERE visit_id = ? ORDER BY version_no DESC').all(visit.id)
   const labOrders = await db.prepare('SELECT * FROM lab_orders WHERE visit_id = ? ORDER BY ordered_at DESC').all(visit.id)
-  res.json({ visit, hospitalData, aiSupport, versions, labOrders })
+  const blockReviews = aiSupport
+    ? await db.prepare('SELECT * FROM ai_block_reviews WHERE ai_support_id = ?').all(aiSupport.id)
+    : []
+  res.json({ visit, hospitalData, aiSupport, blockReviews, versions, labOrders })
 })
 
 app.post('/api/visits/:id/mock-hospital-data', authenticateToken, allowRoles('doctor'), async (req, res) => {
@@ -347,14 +350,69 @@ app.post('/api/visits/:id/ai-support', authenticateToken, allowRoles('doctor'), 
   res.status(201).json({ aiSupport, simulated: true })
 })
 
-app.put('/api/visits/:id/ai-review', authenticateToken, allowRoles('doctor'), async (req, res) => {
-  const status = ['accepted', 'adjusted', 'rejected'].includes(req.body.status) ? req.body.status : null
-  if (!status) return res.status(400).json({ message: 'Trạng thái phản hồi không hợp lệ!' })
-  const ai = await db.prepare('SELECT * FROM ai_support WHERE visit_id = ? ORDER BY id DESC LIMIT 1').get(req.params.id)
+const AI_BLOCKS = ['diagnosis', 'lab_test', 'treatment', 'med_safety']
+
+async function latestAi(visitId) {
+  return db.prepare('SELECT * FROM ai_support WHERE visit_id = ? ORDER BY id DESC LIMIT 1').get(visitId)
+}
+
+async function refreshAiReviewStatus(aiId) {
+  const reviews = await db.prepare('SELECT decision FROM ai_block_reviews WHERE ai_support_id = ?').all(aiId)
+  const decisions = reviews.map((r) => r.decision)
+  const status = decisions.length < AI_BLOCKS.length ? 'pending'
+    : decisions.every((d) => d === 'accepted') ? 'accepted'
+    : decisions.every((d) => d === 'rejected') ? 'rejected'
+    : 'adjusted'
+  await db.prepare('UPDATE ai_support SET review_status = ?, reviewed_at = CASE WHEN ? = \'pending\' THEN NULL ELSE CURRENT_TIMESTAMP END WHERE id = ?').run(status, status, aiId)
+  return {
+    aiSupport: await db.prepare('SELECT * FROM ai_support WHERE id = ?').get(aiId),
+    blockReviews: await db.prepare('SELECT * FROM ai_block_reviews WHERE ai_support_id = ?').all(aiId),
+  }
+}
+
+async function saveBlockReview(aiId, block, decision, finalText, rejectReason, userId) {
+  await db.prepare(`
+    INSERT INTO ai_block_reviews (ai_support_id, block, decision, final_text, reject_reason, reviewed_by, reviewed_at)
+    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT (ai_support_id, block) DO UPDATE SET
+      decision = excluded.decision, final_text = excluded.final_text, reject_reason = excluded.reject_reason,
+      reviewed_by = excluded.reviewed_by, reviewed_at = CURRENT_TIMESTAMP
+  `).run(aiId, block, decision, finalText, rejectReason, userId)
+}
+
+app.put('/api/visits/:id/ai-review/:block', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const { block } = req.params
+  if (!AI_BLOCKS.includes(block)) return res.status(400).json({ message: 'Khối gợi ý không hợp lệ!' })
+  const ai = await latestAi(req.params.id)
   if (!ai) return res.status(404).json({ message: 'Chưa có kết quả hỗ trợ chuyên môn!' })
-  await db.prepare('UPDATE ai_support SET review_status = ?, doctor_feedback = ?, confirmed_plan = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?').run(status, req.body.feedback || null, req.body.confirmedPlan || null, ai.id)
-  const aiSupport = await db.prepare('SELECT * FROM ai_support WHERE id = ?').get(ai.id)
-  res.json({ aiSupport })
+
+  const { decision } = req.body
+  const text = (req.body.text || '').trim()
+  const reason = (req.body.reason || '').trim()
+  if (decision === 'accepted') {
+    await saveBlockReview(ai.id, block, 'accepted', ai[block] || '', null, req.user.id)
+  } else if (decision === 'edited') {
+    if (!text) return res.status(400).json({ message: 'Nội dung chỉnh sửa không được để trống!' })
+    const unchanged = text === (ai[block] || '').trim()
+    await saveBlockReview(ai.id, block, unchanged ? 'accepted' : 'edited', text, null, req.user.id)
+  } else if (decision === 'rejected') {
+    if (!reason) return res.status(400).json({ message: 'Vui lòng ghi lý do từ chối gợi ý AI!' })
+    if (!text) return res.status(400).json({ message: 'Vui lòng nhập nội dung thay thế của bác sĩ!' })
+    await saveBlockReview(ai.id, block, 'rejected', text, reason, req.user.id)
+  } else {
+    return res.status(400).json({ message: 'Quyết định không hợp lệ!' })
+  }
+  res.json(await refreshAiReviewStatus(ai.id))
+})
+
+app.post('/api/visits/:id/ai-review/accept-all', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const ai = await latestAi(req.params.id)
+  if (!ai) return res.status(404).json({ message: 'Chưa có kết quả hỗ trợ chuyên môn!' })
+  const reviewed = (await db.prepare('SELECT block FROM ai_block_reviews WHERE ai_support_id = ?').all(ai.id)).map((r) => r.block)
+  for (const block of AI_BLOCKS.filter((b) => !reviewed.includes(b))) {
+    await saveBlockReview(ai.id, block, 'accepted', ai[block] || '', null, req.user.id)
+  }
+  res.json(await refreshAiReviewStatus(ai.id))
 })
 
 app.put('/api/visits/:id/draft', authenticateToken, allowRoles('doctor'), async (req, res) => {
@@ -387,9 +445,14 @@ app.post('/api/visits/:id/publish', authenticateToken, allowRoles('doctor'), asy
 
 app.post('/api/visits/reception', authenticateToken, allowRoles('receptionist'), async (req, res) => {
   try {
-    const { patientEmail, visitDate, specialty, reason } = req.body
-    const patient = await db.prepare("SELECT id FROM users WHERE email = ? AND role = 'patient'").get(patientEmail)
-    if (!patient) return res.status(404).json({ message: 'Không tìm thấy bệnh nhân với email này!' })
+    const { visitDate, specialty, reason } = req.body
+    const identifier = (req.body.patientIdentifier || '').trim()
+    const patient = await db.prepare(`
+      SELECT users.id FROM users
+      LEFT JOIN patients ON patients.user_id = users.id
+      WHERE users.role = 'patient' AND (UPPER(patients.patient_code) = UPPER(?) OR LOWER(users.email) = LOWER(?))
+    `).get(identifier, identifier)
+    if (!patient) return res.status(404).json({ message: 'Không tìm thấy bệnh nhân với mã hoặc email này!' })
     if (!visitDate || !specialty || !reason) return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin lượt khám!' })
 
     const result = await db.prepare('INSERT INTO visits (patient_id, visit_date, specialty, reason, room) VALUES (?, ?, ?, ?, ?)').run(patient.id, visitDate, specialty, reason, req.body.room || null)

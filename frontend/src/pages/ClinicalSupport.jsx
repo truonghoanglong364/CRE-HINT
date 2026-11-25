@@ -1,19 +1,35 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeftIcon,
   SparklesIcon,
   RefreshCwIcon
 } from '../components/Icons'
 
+const AI_BLOCKS = [
+  { key: 'diagnosis', title: 'Chẩn đoán gợi ý (Diagnosis)', tag: 'Khả năng cao', fillsDraft: 'resultText' },
+  { key: 'lab_test', title: 'Đề xuất xét nghiệm (Lab/Test)', tag: 'Cận lâm sàng' },
+  { key: 'treatment', title: 'Hướng điều trị (Treatment)', tag: 'Phác đồ gợi ý', fillsDraft: 'prescription' },
+  { key: 'med_safety', title: 'An toàn dùng thuốc (MedSafety)', tag: 'Cảnh báo an toàn' },
+]
+
+const DRAFT_FIELD_LABELS = { resultText: 'Kết luận chẩn đoán', prescription: 'Đơn thuốc và lời dặn' }
+
+const REVIEW_STATUS_LABELS = {
+  pending: 'Đang duyệt',
+  accepted: 'Đồng ý toàn bộ',
+  adjusted: 'Đã điều chỉnh',
+  rejected: 'Từ chối toàn bộ',
+}
+
 function ClinicalSupport({ user, visit, onBack }) {
   const [data, setData] = useState({
     visit,
     hospitalData: null,
     aiSupport: null,
+    blockReviews: [],
     versions: []
   })
-  const [feedback, setFeedback] = useState('')
-  const [confirmedPlan, setConfirmedPlan] = useState('')
+  const autoFilled = useRef({})
   const [draft, setDraft] = useState({
     examNotes: '',
     resultText: '',
@@ -120,14 +136,59 @@ function ClinicalSupport({ user, visit, onBack }) {
     setLoading(false)
   }
 
-  const reviewAi = async (status) => {
-    await fetch(`/api/visits/${visit.id}/ai-review`, {
+  // Only overwrite a draft field that is empty or still holds what we auto-filled earlier.
+  const prefillDraft = (reviews, changedKeys) => {
+    const next = { ...draft }
+    const notes = []
+    for (const block of AI_BLOCKS) {
+      if (!block.fillsDraft || !changedKeys.includes(block.key)) continue
+      const review = reviews.find((r) => r.block === block.key)
+      if (!review) continue
+      const field = block.fillsDraft
+      const existing = (draft[field] || '').trim()
+      if (existing && existing !== autoFilled.current[field]) {
+        notes.push(`ô "${DRAFT_FIELD_LABELS[field]}" đã có nội dung nên không ghi đè`)
+        continue
+      }
+      next[field] = review.final_text
+      autoFilled.current[field] = review.final_text.trim()
+      notes.push(`đã điền vào ô "${DRAFT_FIELD_LABELS[field]}"`)
+    }
+    setDraft(next)
+    return notes
+  }
+
+  const applyReviewResult = (result, changedKeys, summary) => {
+    setData((current) => ({ ...current, aiSupport: result.aiSupport, blockReviews: result.blockReviews }))
+    const notes = prefillDraft(result.blockReviews, changedKeys)
+    const tail = notes.length ? ` Mục 3: ${notes.join('; ')}. Nhớ bấm "Lưu bản nháp".` : ''
+    setMessage(summary + tail)
+  }
+
+  const reviewBlock = async (blockKey, decision, text, reason) => {
+    const response = await fetch(`/api/visits/${visit.id}/ai-review/${blockKey}`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify({ status, feedback, confirmedPlan })
+      body: JSON.stringify({ decision, text, reason })
     })
-    await load()
-    setMessage(`Bác sĩ đã đánh giá gợi ý AI: "${status === 'accepted' ? 'Chấp nhận' : status === 'adjusted' ? 'Điều chỉnh' : 'Từ chối'}"`)
+    const result = await response.json()
+    if (!response.ok) return result.message || 'Không thể lưu quyết định.'
+    const saved = result.blockReviews.find((r) => r.block === blockKey)
+    const word = { accepted: 'Đồng ý', edited: 'Chỉnh sửa', rejected: 'Từ chối' }[saved?.decision]
+    const title = AI_BLOCKS.find((b) => b.key === blockKey).title
+    applyReviewResult(result, [blockKey], `Đã lưu quyết định "${word}" cho khối ${title}.`)
+    return null
+  }
+
+  const acceptAllBlocks = async () => {
+    const pendingKeys = AI_BLOCKS.map((b) => b.key).filter((k) => !data.blockReviews?.some((r) => r.block === k))
+    const response = await fetch(`/api/visits/${visit.id}/ai-review/accept-all`, { method: 'POST', headers })
+    const result = await response.json()
+    if (!response.ok) {
+      setMessage(result.message || 'Không thể đồng ý toàn bộ.')
+      return
+    }
+    applyReviewResult(result, pendingKeys, `Đã đồng ý ${pendingKeys.length} khối gợi ý AI còn lại.`)
   }
 
   const saveDraft = async () => {
@@ -162,6 +223,7 @@ function ClinicalSupport({ user, visit, onBack }) {
   }
 
   const ai = data.aiSupport
+  const reviewedCount = data.blockReviews?.length || 0
 
   return (
     <div className="feature-page">
@@ -278,11 +340,32 @@ function ClinicalSupport({ user, visit, onBack }) {
 
           {ai ? (
             <>
+              <div className="ai-review-bar">
+                <div>
+                  <strong style={{ fontSize: '15px', color: 'var(--slate-900)' }}>Bác sĩ duyệt từng khối gợi ý</strong>
+                  <div style={{ fontSize: '13px', color: 'var(--slate-500)', marginTop: '2px' }}>
+                    Đã duyệt {reviewedCount}/{AI_BLOCKS.length} khối · Trạng thái: <b style={{ color: 'var(--primary)' }}>{REVIEW_STATUS_LABELS[ai.review_status] || ai.review_status}</b>
+                  </div>
+                </div>
+                {reviewedCount < AI_BLOCKS.length && (
+                  <div className="ai-actions">
+                    <button className="btn-accept" onClick={acceptAllBlocks}>
+                      ✓ {reviewedCount === 0 ? 'Đồng ý toàn bộ' : 'Đồng ý các khối còn lại'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="ai-grid">
-                <AiBox title="Chẩn đoán gợi ý (Diagnosis)" value={ai.diagnosis} tag="Khả năng cao" />
-                <AiBox title="Đề xuất xét nghiệm (Lab/Test)" value={ai.lab_test} tag="Cận lâm sàng" />
-                <AiBox title="Hướng điều trị (Treatment)" value={ai.treatment} tag="Phác đồ gợi ý" />
-                <AiBox title="An toàn dùng thuốc (MedSafety)" value={ai.med_safety} tag="Cảnh báo an toàn" />
+                {AI_BLOCKS.map((block) => (
+                  <AiReviewBlock
+                    key={`${ai.id}-${block.key}`}
+                    block={block}
+                    aiText={ai[block.key]}
+                    review={data.blockReviews?.find((r) => r.block === block.key)}
+                    onSubmit={(decision, text, reason) => reviewBlock(block.key, decision, text, reason)}
+                  />
+                ))}
               </div>
 
               <div
@@ -292,107 +375,12 @@ function ClinicalSupport({ user, visit, onBack }) {
                   borderRadius: 'var(--radius-md)',
                   padding: '12px 16px',
                   fontSize: '13px',
-                  color: 'var(--warning-800)',
-                  margin: '16px 0'
+                  color: 'var(--warning-700)',
+                  margin: '0 0 4px'
                 }}
               >
                 <strong>Khoảng trống dữ liệu cần lưu ý: </strong>
                 {ai.missing_data}
-              </div>
-
-              <div
-                style={{
-                  background: 'var(--slate-50)',
-                  border: '1px solid var(--slate-200)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '20px'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <strong style={{ fontSize: '15px', color: 'var(--slate-900)' }}>
-                    Đánh giá & Quyết định của Bác sĩ:
-                  </strong>
-                  <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--primary)' }}>
-                    Trạng thái hiện tại: {ai.review_status || 'Chưa đánh giá'}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
-                  <button
-                    onClick={() => reviewAi('accepted')}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: 'var(--radius-md)',
-                      background: 'var(--success)',
-                      color: 'white',
-                      border: 'none',
-                      fontWeight: 'bold',
-                      fontSize: '13px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    ✓ Chấp nhận toàn bộ
-                  </button>
-                  <button
-                    onClick={() => reviewAi('adjusted')}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: 'var(--radius-md)',
-                      background: 'var(--warning)',
-                      color: 'white',
-                      border: 'none',
-                      fontWeight: 'bold',
-                      fontSize: '13px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    ✎ Điều chỉnh phác đồ
-                  </button>
-                  <button
-                    onClick={() => reviewAi('rejected')}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: 'var(--radius-md)',
-                      background: 'var(--danger)',
-                      color: 'white',
-                      border: 'none',
-                      fontWeight: 'bold',
-                      fontSize: '13px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    ✕ Không áp dụng
-                  </button>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <textarea
-                    value={feedback}
-                    onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="Ý kiến chuyên môn hoặc lý do điều chỉnh..."
-                    style={{
-                      padding: '10px 14px',
-                      border: '1.5px solid var(--slate-200)',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '13px',
-                      minHeight: '70px',
-                      width: '100%'
-                    }}
-                  />
-                  <textarea
-                    value={confirmedPlan}
-                    onChange={(e) => setConfirmedPlan(e.target.value)}
-                    placeholder="Kế hoạch điều trị chính thức được bác sĩ phê duyệt..."
-                    style={{
-                      padding: '10px 14px',
-                      border: '1.5px solid var(--slate-200)',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '13px',
-                      minHeight: '70px',
-                      width: '100%'
-                    }}
-                  />
-                </div>
               </div>
             </>
           ) : (
@@ -586,17 +574,126 @@ function ClinicalSupport({ user, visit, onBack }) {
   )
 }
 
-function AiBox({ title, value, tag }) {
-  return (
-    <div className="ai-box">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-        <strong>{title}</strong>
-        <span style={{ fontSize: '11px', background: 'var(--primary-100)', color: 'var(--primary-800)', padding: '2px 6px', borderRadius: '4px', fontWeight: '600' }}>
-          {tag}
-        </span>
-      </div>
-      <p>{value || 'Chưa có phân tích.'}</p>
+const DECISION_LABELS = {
+  pending: 'Chưa duyệt',
+  accepted: 'Đã đồng ý',
+  edited: 'Đã chỉnh sửa',
+  rejected: 'Đã từ chối',
+}
+
+function AiReviewBlock({ block, aiText, review, onSubmit }) {
+  const [mode, setMode] = useState('view')
+  const [showChoices, setShowChoices] = useState(false)
+  const [text, setText] = useState('')
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const decision = review?.decision || 'pending'
+
+  const startEdit = () => {
+    setText(review?.final_text || aiText || '')
+    setError('')
+    setMode('edit')
+  }
+
+  const startReject = () => {
+    setText(review?.decision === 'rejected' ? review.final_text : '')
+    setReason(review?.reject_reason || '')
+    setError('')
+    setMode('reject')
+  }
+
+  const cancel = () => {
+    setMode('view')
+    setError('')
+  }
+
+  const submit = async (nextDecision) => {
+    if (nextDecision === 'edited' && !text.trim()) return setError('Nội dung chỉnh sửa không được để trống.')
+    if (nextDecision === 'rejected' && !reason.trim()) return setError('Vui lòng ghi lý do từ chối.')
+    if (nextDecision === 'rejected' && !text.trim()) return setError('Vui lòng nhập nội dung thay thế của bác sĩ.')
+    setSaving(true)
+    const failure = await onSubmit(nextDecision, text, reason)
+    setSaving(false)
+    if (failure) return setError(failure)
+    setMode('view')
+    setShowChoices(false)
+    setError('')
+  }
+
+  const choices = (
+    <div className="ai-actions">
+      <button className="btn-accept" disabled={saving} onClick={() => submit('accepted')}>✓ Đồng ý</button>
+      <button className="btn-edit" disabled={saving} onClick={startEdit}>✎ Sửa</button>
+      <button className="btn-reject" disabled={saving} onClick={startReject}>✕ Từ chối</button>
+      {review && <button className="btn-ghost" onClick={() => setShowChoices(false)}>Hủy</button>}
     </div>
+  )
+
+  return (
+    <div className={`ai-box review-${decision}`}>
+      <div className="ai-box-head">
+        <strong>{block.title}</strong>
+        <div className="ai-box-tags">
+          <span className="ai-tag">{block.tag}</span>
+          <span className={`ai-tag decision-${decision}`}>{DECISION_LABELS[decision]}</span>
+        </div>
+      </div>
+
+      {mode === 'edit' && (
+        <>
+          <span className="ai-field-label">Chỉnh sửa nội dung gợi ý</span>
+          <textarea value={text} onChange={(e) => setText(e.target.value)} autoFocus />
+          <OriginalAiText aiText={aiText} />
+          {error && <p className="ai-error">{error}</p>}
+          <div className="ai-actions">
+            <button className="btn-edit" disabled={saving} onClick={() => submit('edited')}>Lưu chỉnh sửa</button>
+            <button className="btn-ghost" onClick={cancel}>Hủy</button>
+          </div>
+        </>
+      )}
+
+      {mode === 'reject' && (
+        <>
+          <OriginalAiText aiText={aiText} open />
+          <span className="ai-field-label">Lý do từ chối *</span>
+          <textarea value={reason} onChange={(e) => setReason(e.target.value)} style={{ minHeight: '60px' }} autoFocus placeholder="Vì sao gợi ý này không phù hợp với bệnh nhân..." />
+          <span className="ai-field-label">Nội dung của bác sĩ *</span>
+          <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Nhập nội dung theo đánh giá của bác sĩ..." />
+          {error && <p className="ai-error">{error}</p>}
+          <div className="ai-actions">
+            <button className="btn-reject" disabled={saving} onClick={() => submit('rejected')}>Xác nhận từ chối</button>
+            <button className="btn-ghost" onClick={cancel}>Hủy</button>
+          </div>
+        </>
+      )}
+
+      {mode === 'view' && (
+        <>
+          <p>{(review ? review.final_text : aiText) || 'Chưa có phân tích.'}</p>
+          {review?.decision === 'rejected' && (
+            <span className="ai-reject-reason">Lý do từ chối: {review.reject_reason}</span>
+          )}
+          {review && review.decision !== 'accepted' && <OriginalAiText aiText={aiText} />}
+          {error && <p className="ai-error">{error}</p>}
+          {!review || showChoices ? choices : (
+            <div className="ai-actions">
+              <button className="btn-ghost" onClick={() => setShowChoices(true)}>Thay đổi</button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function OriginalAiText({ aiText, open = false }) {
+  return (
+    <details className="ai-original" open={open}>
+      <summary>Gợi ý gốc của AI</summary>
+      <p>{aiText || '—'}</p>
+    </details>
   )
 }
 
