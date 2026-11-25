@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import AddVitals, { VisitVitals } from './AddVitals'
 import {
   HeartIcon,
   CalendarIcon,
@@ -32,6 +33,8 @@ function ReceptionDashboard({ user, onLogout }) {
     reason: '',
     room: 'Phòng khám Tim mạch 01'
   })
+  const [doctors, setDoctors] = useState([])
+  const [intakeVisit, setIntakeVisit] = useState(null)
 
   const load = async () => {
     try {
@@ -52,26 +55,17 @@ function ReceptionDashboard({ user, onLogout }) {
     load()
   }, [date])
 
-  const checkIn = async (id) => {
-    try {
-      const response = await fetch(`/api/visits/${id}/check-in`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${user.token}`
-        },
-        body: JSON.stringify({ room: form.room })
-      })
-      if (!response.ok) {
-        const data = await response.json()
-        setMessage(data.message || 'Không thể tiếp nhận lượt khám')
-        return
-      }
-      setMessage('Tiếp nhận bệnh nhân thành công và đã cấp số thứ tự!')
-      await load()
-    } catch (err) {
-      setMessage('Lỗi khi tiếp nhận bệnh nhân')
-    }
+  useEffect(() => {
+    fetch('/api/doctors', { headers: { Authorization: `Bearer ${user.token}` } })
+      .then((response) => response.json())
+      .then((data) => setDoctors(data.doctors || []))
+      .catch(() => setMessage('Không tải được danh sách bác sĩ.'))
+  }, [user.token])
+
+  const handleIntakeDone = async (visit) => {
+    setIntakeVisit(null)
+    setMessage(`Đã cấp số #${visit.queue_number} và chuyển lượt khám cho bác sĩ.`)
+    await load()
   }
 
   const createDirectVisit = async (event) => {
@@ -133,7 +127,7 @@ function ReceptionDashboard({ user, onLogout }) {
           <div>
             <p className="welcome">Quầy tiếp đón & phân luồng</p>
             <h1>{user?.fullName || 'Nhân viên y tế'} 👋</h1>
-            <p>Xác nhận bệnh nhân đến, cấp số thứ tự và tạo lượt khám trực tiếp tại quầy.</p>
+            <p>Tiếp nhận bệnh nhân, đo sinh hiệu, cấp số thứ tự và chuyển lượt khám cho bác sĩ.</p>
           </div>
 
           <div className="doctor-avatar" style={{ background: 'var(--primary-100)', color: 'var(--primary-800)' }}>
@@ -281,6 +275,10 @@ function ReceptionDashboard({ user, onLogout }) {
                   {visit.specialty} {visit.room ? `· ${visit.room}` : ''}
                 </p>
                 <small style={{ color: 'var(--slate-400)' }}>Lý do: {visit.reason}</small>
+                <VisitVitals visit={visit} />
+                {visit.doctor_name && visit.status !== 'registered' && (
+                  <small style={{ display: 'block', marginTop: '4px', color: 'var(--slate-500)' }}>→ BS. {visit.doctor_name}</small>
+                )}
               </div>
 
               <span className={`visit-status status-${visit.status}`}>
@@ -290,11 +288,11 @@ function ReceptionDashboard({ user, onLogout }) {
               {visit.status === 'registered' && (
                 <button
                   className="primary-action"
-                  onClick={() => checkIn(visit.id)}
+                  onClick={() => setIntakeVisit(visit)}
                   style={{ background: 'var(--success)' }}
                 >
                   <CheckCircleIcon size={14} />
-                  <span>Xác nhận đã đến & Cấp số</span>
+                  <span>Nhập sinh hiệu & chuyển bác sĩ</span>
                 </button>
               )}
 
@@ -307,6 +305,17 @@ function ReceptionDashboard({ user, onLogout }) {
           ))}
         </section>
       </main>
+
+      {intakeVisit && (
+        <AddVitals
+          user={user}
+          visit={intakeVisit}
+          doctors={doctors}
+          defaultRoom={form.room}
+          onClose={() => setIntakeVisit(null)}
+          onDone={handleIntakeDone}
+        />
+      )}
     </div>
   )
 }

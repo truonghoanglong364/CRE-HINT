@@ -1454,3 +1454,10 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Tiếp nhận: nhân viên y tế nhập sinh hiệu & chuyển bác sĩ */
+.vitals-intake-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.visit-vitals { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.visit-vitals span { padding: 3px 8px; border-radius: 6px; background: var(--slate-100); color: var(--slate-700); font-size: 12px; font-weight: 600; }
+.visit-vitals .vital-flag { background: var(--danger-50); color: var(--danger-700); }
+@media (max-width: 600px) { .vitals-intake-grid { grid-template-columns: 1fr; } }

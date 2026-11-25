@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   HeartIcon,
-  PlusIcon,
   FileTextIcon,
   PillIcon,
   CalendarIcon,
@@ -19,7 +18,6 @@ import {
 function PatientDashboard({
   user,
   onLogout,
-  onAddVitals,
   onViewHistory,
   onViewMedication,
   onViewAppointments,
@@ -59,10 +57,6 @@ function PatientDashboard({
           <button className="nav-item active">
             <HeartIcon size={18} />
             <span>Tổng quan sức khỏe</span>
-          </button>
-          <button className="nav-item" onClick={onAddVitals}>
-            <PlusIcon size={18} />
-            <span>Ghi nhận chỉ số</span>
           </button>
           <button className="nav-item" onClick={onViewHistory}>
             <FileTextIcon size={18} />
@@ -113,15 +107,15 @@ function PatientDashboard({
                 ? "Phát hiện chỉ số / triệu chứng cần theo dõi sát"
                 : hasVitals
                   ? "Tình trạng lâm sàng hiện tại ổn định"
-                  : "Chưa ghi nhận chỉ số sức khỏe hôm nay"}
+                  : "Chưa có chỉ số sinh hiệu"}
             </strong>
 
             <p>
               {hasAlert
-                ? "Một số chỉ số hoặc triệu chứng bạn vừa ghi nhận nằm ngoài ngưỡng an toàn cho bệnh nhân suy tim. Bác sĩ chuyên khoa đã được gửi cảnh báo và đang rà soát."
+                ? "Một số chỉ số hoặc triệu chứng ghi nhận ở lần khám gần nhất nằm ngoài ngưỡng an toàn cho bệnh nhân suy tim. Bác sĩ chuyên khoa đã được gửi cảnh báo và đang rà soát."
                 : hasVitals
                   ? "Các chỉ số cân nặng, huyết áp, nhịp tim và SpO₂ gần nhất đều nằm trong ngưỡng an toàn cho phép."
-                  : "Hãy dành 2 phút gửi chỉ số huyết áp, cân nặng và nhịp tim sáng nay để bác sĩ quản lý tốt nhất."}
+                  : "Sinh hiệu sẽ được nhân viên y tế đo và cập nhật khi bạn đến khám."}
             </p>
 
             {activeSymptoms.length > 0 && (
@@ -156,7 +150,7 @@ function PatientDashboard({
               <h2>Chỉ số đo gần nhất</h2>
               <p>
                 {vitals.createdAt
-                  ? `Dữ liệu đo gửi lúc ${new Date(vitals.createdAt).toLocaleString('vi-VN')}`
+                  ? `Đo tại cơ sở y tế lúc ${new Date(vitals.createdAt).toLocaleString('vi-VN')}`
                   : 'Chưa có dữ liệu sinh hiệu'}
               </p>
             </div>
@@ -165,10 +159,6 @@ function PatientDashboard({
               <button className="primary-action" onClick={onViewBookVisit} style={{ background: 'var(--slate-800)' }}>
                 <CalendarIcon size={16} />
                 <span>Đăng ký khám bệnh</span>
-              </button>
-              <button className="primary-action" onClick={onAddVitals}>
-                <PlusIcon size={16} />
-                <span>Ghi nhận chỉ số mới</span>
               </button>
             </div>
           </div>

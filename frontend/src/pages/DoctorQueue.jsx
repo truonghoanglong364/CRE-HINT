@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { VisitVitals } from './AddVitals'
 import {
   ArrowLeftIcon,
   ClockIcon,
@@ -160,6 +161,7 @@ function DoctorQueue({ user, onBack, onOpenSupport }) {
                   Chuyên khoa: <strong>{visit.specialty}</strong> {visit.room ? `· ${visit.room}` : ''}
                 </p>
                 <small style={{ color: 'var(--slate-600)' }}>Lý do khám: {visit.reason}</small>
+                <VisitVitals visit={visit} />
               </div>
 
               <span className={`visit-status status-${visit.status}`}>
@@ -167,12 +169,6 @@ function DoctorQueue({ user, onBack, onOpenSupport }) {
               </span>
 
               <div className="queue-actions">
-                {visit.status === 'registered' && (
-                  <button onClick={() => action(visit.id, 'check-in')}>
-                    Tiếp nhận vào phòng
-                  </button>
-                )}
-
                 {visit.status === 'waiting' && (
                   <>
                     <button

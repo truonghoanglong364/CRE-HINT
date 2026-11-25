@@ -182,6 +182,10 @@ async function initDatabase() {
     WHERE patient_code IS NULL OR patient_code = ''
   `)
 
+  const vitalColumns = (await db.prepare('PRAGMA table_info(vitals)').all()).map((c) => c.name)
+  if (!vitalColumns.includes('visit_id')) await client.execute('ALTER TABLE vitals ADD COLUMN visit_id INTEGER REFERENCES visits(id) ON DELETE SET NULL')
+  if (!vitalColumns.includes('recorded_by')) await client.execute('ALTER TABLE vitals ADD COLUMN recorded_by INTEGER REFERENCES users(id) ON DELETE SET NULL')
+
   const visitColumns = (await db.prepare('PRAGMA table_info(visits)').all()).map((c) => c.name)
   if (!visitColumns.includes('result_status')) await client.execute("ALTER TABLE visits ADD COLUMN result_status TEXT NOT NULL DEFAULT 'draft'")
   if (!visitColumns.includes('published_at')) await client.execute('ALTER TABLE visits ADD COLUMN published_at DATETIME')

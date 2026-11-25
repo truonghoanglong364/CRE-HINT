@@ -140,7 +140,7 @@ function HealthHistory({ vitals, user, onBack }) {
 
           {!loading && records.length === 0 && (
             <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--slate-400)' }}>
-              <p>Chưa có dữ liệu đo nào được ghi nhận. Hãy gửi lần đo đầu tiên của bạn!</p>
+              <p>Chưa có dữ liệu đo nào được ghi nhận. Sinh hiệu sẽ được nhân viên y tế đo khi bạn đến khám.</p>
             </div>
           )}
 
