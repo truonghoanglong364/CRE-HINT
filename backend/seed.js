@@ -67,7 +67,7 @@ async function seed() {
 
   console.log('Tạo tài khoản bác sĩ và lễ tân...')
   const doctorId = await upsertUser({ fullName: 'BS. Nguyễn Minh Tuấn', email: 'doctor@demo.vn', role: 'doctor' })
-  await upsertUser({ fullName: 'Nhân viên y tế', email: 'reception@demo.vn', role: 'receptionist' })
+  const receptionistId = await upsertUser({ fullName: 'Nhân viên y tế', email: 'reception@demo.vn', role: 'receptionist' })
 
   console.log('Tạo hồ sơ bệnh nhân...')
   const p1 = await upsertPatient({ fullName: 'Nguyễn Văn An', email: 'an.nguyen@demo.vn', dateOfBirth: '1958-03-12', gender: 'Nam', phone: '0912 345 678', address: 'Số 12, Cầu Giấy, Hà Nội' })
@@ -88,11 +88,8 @@ async function seed() {
     { user: p1.userId, days: 7,  weight: 67.5, systolic: 142, diastolic: 85, heart_rate: 88, spo2: 95, dyspnea: 0, edema: 0, chest_pain: 0 },
     { user: p1.userId, days: 4,  weight: 68.1, systolic: 148, diastolic: 88, heart_rate: 94, spo2: 94, dyspnea: 1, edema: 0, chest_pain: 0 },
     { user: p1.userId, days: 2,  weight: 68.6, systolic: 152, diastolic: 90, heart_rate: 96, spo2: 94, dyspnea: 1, edema: 1, chest_pain: 0 },
-    { user: p1.userId, days: 0,  weight: 68.9, systolic: 158, diastolic: 92, heart_rate: 98, spo2: 93, dyspnea: 1, edema: 1, chest_pain: 0 },
-    { user: p2.userId, days: 1,  weight: 54.8, systolic: 132, diastolic: 80, heart_rate: 82, spo2: 97, dyspnea: 0, edema: 0, chest_pain: 0 },
-    { user: p3.userId, days: 0,  weight: 72.4, systolic: 170, diastolic: 96, heart_rate: 102, spo2: 92, dyspnea: 1, edema: 1, chest_pain: 1 },
-    { user: p4.userId, days: 2,  weight: 60.1, systolic: 128, diastolic: 78, heart_rate: 78, spo2: 98, dyspnea: 0, edema: 0, chest_pain: 0 },
-    { user: p5.userId, days: 1,  weight: 65.3, systolic: 145, diastolic: 88, heart_rate: 90, spo2: 95, dyspnea: 1, edema: 0, chest_pain: 0 },
+    { user: p2.userId, days: 14, weight: 55.2, systolic: 136, diastolic: 82, heart_rate: 84, spo2: 96, dyspnea: 0, edema: 0, chest_pain: 0 },
+    { user: p4.userId, days: 30, weight: 60.5, systolic: 142, diastolic: 88, heart_rate: 80, spo2: 98, dyspnea: 0, edema: 0, chest_pain: 0 },
   ]
   for (const v of vitalsHistory) {
     const createdAt = new Date(Date.now() - v.days * 86400000).toISOString()
@@ -112,11 +109,16 @@ async function seed() {
 
   console.log('Tạo hàng đợi khám hôm nay...')
   const todayVisits = [
-    { patient: p1, status: 'in_progress', queue: 1, room: 'Phòng khám Tim mạch 01', reason: 'Khó thở khi gắng sức, phù chi dưới tăng', priority: 'urgent' },
-    { patient: p2, status: 'called',      queue: 2, room: 'Phòng khám Tim mạch 01', reason: 'Tái khám định kỳ sau điều trị suy tim', priority: 'normal' },
-    { patient: p3, status: 'waiting',     queue: 3, room: 'Phòng khám Tim mạch 01', reason: 'Đau ngực trái, hồi hộp đánh trống ngực', priority: 'emergency' },
-    { patient: p4, status: 'waiting',     queue: 4, room: 'Phòng khám Tim mạch 01', reason: 'Khám định kỳ tăng huyết áp', priority: 'normal' },
-    { patient: p5, status: 'waiting',     queue: 5, room: 'Phòng khám Tim mạch 01', reason: 'Tái khám suy tim NYHA III, điều chỉnh thuốc', priority: 'urgent' },
+    { patient: p1, status: 'in_progress', queue: 1, room: 'Phòng khám Tim mạch 01', reason: 'Khó thở khi gắng sức, phù chi dưới tăng', priority: 'urgent',
+      vital: { weight: 68.9, systolic: 158, diastolic: 92, heart_rate: 98, spo2: 93, dyspnea: 1, edema: 1, chest_pain: 0 } },
+    { patient: p2, status: 'called',      queue: 2, room: 'Phòng khám Tim mạch 01', reason: 'Tái khám định kỳ sau điều trị suy tim', priority: 'normal',
+      vital: { weight: 54.8, systolic: 132, diastolic: 80, heart_rate: 82, spo2: 97, dyspnea: 0, edema: 0, chest_pain: 0 } },
+    { patient: p3, status: 'waiting',     queue: 3, room: 'Phòng khám Tim mạch 01', reason: 'Đau ngực trái, hồi hộp đánh trống ngực', priority: 'emergency',
+      vital: { weight: 72.4, systolic: 170, diastolic: 96, heart_rate: 102, spo2: 92, dyspnea: 1, edema: 1, chest_pain: 1 } },
+    { patient: p4, status: 'waiting',     queue: 4, room: 'Phòng khám Tim mạch 01', reason: 'Khám định kỳ tăng huyết áp', priority: 'normal',
+      vital: { weight: 60.1, systolic: 148, diastolic: 90, heart_rate: 86, spo2: 97, dyspnea: 0, edema: 0, chest_pain: 0 } },
+    { patient: p5, status: 'waiting',     queue: 5, room: 'Phòng khám Tim mạch 01', reason: 'Tái khám suy tim NYHA III, điều chỉnh thuốc', priority: 'urgent',
+      vital: { weight: 65.3, systolic: 155, diastolic: 92, heart_rate: 95, spo2: 94, dyspnea: 1, edema: 0, chest_pain: 0 } },
     { patient: p6, status: 'registered',  queue: null, room: null, reason: 'Khám tổng quát tim mạch, mệt mỏi kéo dài', priority: 'normal' },
     { patient: p7, status: 'registered',  queue: null, room: null, reason: 'Khó thở về đêm, nghi suy tim trái', priority: 'normal' },
     { patient: p8, status: 'completed',   queue: 6, room: 'Phòng khám Tim mạch 01', reason: 'Khám sau xuất viện 2 tuần', priority: 'normal',
@@ -124,7 +126,8 @@ async function seed() {
       result_text: 'Suy tim NYHA II ổn định. Chức năng tâm thu cải thiện so với đợt xuất viện.',
       prescription: '1. Bisoprolol 2.5 mg - 1 viên/ngày (sáng)\n2. Furosemide 40 mg - 1 viên/ngày (sáng)\n3. Spironolactone 25 mg - 1 viên/ngày\n4. Hạn chế muối <2g/ngày, theo dõi cân nặng hàng sáng',
       follow_up_at: inAWeek + 'T08:30',
-      result_status: 'published'
+      result_status: 'published',
+      vital: { weight: 58.4, systolic: 128, diastolic: 78, heart_rate: 76, spo2: 97, dyspnea: 0, edema: 0, chest_pain: 0 }
     },
   ]
 
@@ -143,7 +146,18 @@ async function seed() {
       v.result_status === 'published' ? new Date().toISOString() : null,
       v.status === 'completed' ? new Date().toISOString() : null,
     )
-    visitIds[v.patient.patientCode] = result.lastInsertRowid
+    const visitId = result.lastInsertRowid
+    visitIds[v.patient.patientCode] = visitId
+
+    // Attach vitals measured by receptionist at check-in
+    if (v.vital) {
+      await db.prepare(`
+        INSERT INTO vitals (user_id, visit_id, recorded_by, weight, systolic, diastolic, heart_rate, spo2, dyspnea, edema, chest_pain, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `).run(v.patient.userId, visitId, receptionistId,
+        v.vital.weight, v.vital.systolic, v.vital.diastolic, v.vital.heart_rate, v.vital.spo2,
+        v.vital.dyspnea, v.vital.edema, v.vital.chest_pain)
+    }
   }
 
   console.log('Tạo lịch tái khám sắp tới...')
