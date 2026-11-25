@@ -1357,6 +1357,66 @@
 }
 .ai-review-bar .ai-actions { margin-top: 0; }
 
+.queue-ticket {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 24px;
+  margin-bottom: 28px;
+  background: white;
+  border: 1.5px solid var(--primary-200);
+  border-left: 6px solid var(--primary-600);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xs);
+}
+.queue-ticket.ticket-registered { border-color: var(--slate-200); border-left-color: var(--slate-400); }
+.queue-ticket.ticket-called { border-color: var(--success-200); border-left-color: var(--success-600); background: var(--success-50); }
+.queue-ticket.ticket-in_progress { border-color: var(--warning-200); border-left-color: var(--warning); }
+
+.queue-ticket-number {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 110px;
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--primary-50);
+  color: var(--primary-700);
+}
+.ticket-called .queue-ticket-number { background: var(--success-100); color: var(--success-700); }
+.queue-ticket-number span { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.queue-ticket-number strong { font-size: 40px; line-height: 1.1; font-weight: 800; }
+
+.queue-ticket-body { flex: 1; min-width: 0; }
+.queue-ticket-status { font-size: 13px; font-weight: 700; color: var(--primary-700); }
+.ticket-called .queue-ticket-status { color: var(--success-700); }
+.ticket-in_progress .queue-ticket-status { color: var(--warning-700); }
+.ticket-registered .queue-ticket-status { color: var(--slate-500); }
+.queue-ticket-body h3 { margin: 4px 0; font-size: 20px; color: var(--slate-900); }
+.queue-ticket-body p { margin: 0; font-size: 14px; color: var(--slate-600); }
+.queue-ticket-body small { display: block; margin-top: 4px; font-size: 12.5px; color: var(--slate-500); }
+
+.queue-ticket-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  background: white;
+  color: var(--primary-700);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .queue-ticket { flex-wrap: wrap; gap: 14px; }
+  .queue-ticket-link { width: 100%; justify-content: center; }
+}
+
 .simulation-badge {
   background: #f3e8ff;
   color: #7e22ce;

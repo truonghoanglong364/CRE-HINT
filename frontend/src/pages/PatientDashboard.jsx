@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   HeartIcon,
   FileTextIcon,
@@ -142,6 +142,8 @@ function PatientDashboard({
             )}
           </div>
         </div>
+
+        <QueueTicket user={user} onViewVisits={onViewVisits} />
 
         {/* Vitals Section */}
         <section>
@@ -312,6 +314,73 @@ function PatientDashboard({
         </section>
       </main>
     </div>
+  )
+}
+
+const ACTIVE_STATUSES = ['registered', 'waiting', 'called', 'in_progress']
+
+const TICKET_STATUS = {
+  registered: { label: 'Chờ tiếp nhận tại quầy', hint: 'Vui lòng đến quầy tiếp đón để đo sinh hiệu và nhận số thứ tự.' },
+  waiting: { label: 'Đang xếp hàng', hint: 'Vui lòng ngồi chờ, hệ thống sẽ báo khi đến lượt bạn.' },
+  called: { label: 'Đến lượt bạn', hint: 'Mời bạn vào phòng khám ngay.' },
+  in_progress: { label: 'Bác sĩ đang khám', hint: 'Bạn đang trong phòng khám.' },
+}
+
+function QueueTicket({ user, onViewVisits }) {
+  const [visit, setVisit] = useState(null)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const response = await fetch('/api/visits/mine', { headers: { Authorization: `Bearer ${user.token}` } })
+        const data = await response.json()
+        const today = new Date().toISOString().slice(0, 10)
+        const active = (data.visits || [])
+          .filter((v) => ACTIVE_STATUSES.includes(v.status) && v.visit_date <= today)
+          .sort((a, b) => ACTIVE_STATUSES.indexOf(b.status) - ACTIVE_STATUSES.indexOf(a.status))
+        setVisit(active[0] || null)
+      } catch {
+        setVisit(null)
+      }
+    }
+    load()
+    const timer = setInterval(load, 15000)
+    return () => clearInterval(timer)
+  }, [user.token])
+
+  if (!visit) return null
+
+  const status = TICKET_STATUS[visit.status]
+  const hasNumber = visit.queue_number != null
+
+  return (
+    <section className={`queue-ticket ticket-${visit.status}`}>
+      <div className="queue-ticket-number">
+        <span>Số thứ tự</span>
+        <strong>{hasNumber ? `#${visit.queue_number}` : '—'}</strong>
+      </div>
+
+      <div className="queue-ticket-body">
+        <span className="queue-ticket-status">● {status.label}</span>
+        <h3>
+          {visit.status === 'waiting' && visit.peopleAhead != null
+            ? (visit.peopleAhead === 0 ? 'Bạn là người tiếp theo' : `Còn ${visit.peopleAhead} người phía trước bạn`)
+            : status.hint}
+        </h3>
+        <p>
+          {visit.specialty}
+          {visit.room && ` · ${visit.room}`}
+          {visit.doctor_name && ` · BS. ${visit.doctor_name}`}
+          {` · Ngày ${new Date(visit.visit_date).toLocaleDateString('vi-VN')}`}
+        </p>
+        {visit.status === 'waiting' && <small>{status.hint}</small>}
+      </div>
+
+      <button className="queue-ticket-link" onClick={onViewVisits}>
+        <span>Chi tiết lượt khám</span>
+        <ChevronRightIcon size={16} />
+      </button>
+    </section>
   )
 }
 
