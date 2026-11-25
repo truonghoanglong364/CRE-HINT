@@ -67,7 +67,7 @@ async function seed() {
   await clearDemoData()
 
   console.log('Tạo tài khoản bác sĩ và lễ tân...')
-  const doctorId = await upsertUser({ fullName: 'BS. Nguyễn Minh Tuấn', email: 'doctor@demo.vn', role: 'doctor' })
+  const doctorId = await upsertUser({ fullName: 'Nguyễn Minh Tuấn', email: 'doctor@demo.vn', role: 'doctor' })
   const receptionistId = await upsertUser({ fullName: 'Nhân viên y tế', email: 'reception@demo.vn', role: 'receptionist' })
 
   console.log('Tạo hồ sơ bệnh nhân...')
@@ -80,7 +80,10 @@ async function seed() {
   const p7 = await upsertPatient({ fullName: 'Đỗ Minh Khôi', email: 'khoi.do@demo.vn', dateOfBirth: '1975-12-15', gender: 'Nam', phone: '0922 333 444', address: 'Số 5, Tây Hồ, Hà Nội' })
   const p8 = await upsertPatient({ fullName: 'Bùi Thanh Hà', email: 'ha.bui@demo.vn', dateOfBirth: '1960-04-07', gender: 'Nữ', phone: '0919 282 737', address: 'Số 18, Hoàn Kiếm, Hà Nội' })
 
-  const patients = [p1, p2, p3, p4, p5, p6, p7, p8]
+  // No visits or vitals: used to walk through the full flow from booking.
+  const p9 = await upsertPatient({ fullName: 'Ngô Thị Thu', email: 'thu.ngo@demo.vn', dateOfBirth: '1968-06-21', gender: 'Nữ', phone: '0915 667 889', address: 'Số 61, Hoàng Mai, Hà Nội' })
+
+  const patients = [p1, p2, p3, p4, p5, p6, p7, p8, p9]
   console.log(`Đã tạo ${patients.length} bệnh nhân. BN0001 = ${p1.fullName}.`)
 
   console.log('Nạp chỉ số sinh hiệu cho bệnh nhân BN0001 (và một số bệnh nhân khác)...')
@@ -300,6 +303,7 @@ async function seed() {
   console.log('==== HOÀN TẤT NẠP DỮ LIỆU DEMO ====')
   console.log('Tài khoản đăng nhập (mật khẩu: 123456):')
   console.log('  - Bệnh nhân:  BN0001 (Nguyễn Văn An)')
+  console.log(`  - Demo từ đầu: ${p9.patientCode} (${p9.fullName}) - chưa có lượt khám`)
   console.log('  - Bác sĩ:     doctor@demo.vn (BS. Nguyễn Minh Tuấn)')
   console.log('  - Lễ tân:     reception@demo.vn (Nhân viên y tế)')
   console.log('')
