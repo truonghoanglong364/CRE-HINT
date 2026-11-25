@@ -17,6 +17,7 @@ import DoctorQueue from './pages/DoctorQueue'
 import ReceptionDashboard from './pages/ReceptionDashboard'
 import ClinicalSupport from './pages/ClinicalSupport'
 import { HeartIcon, UserIcon, StethoscopeIcon, FileTextIcon } from './components/Icons'
+import DoctorSchedule from './pages/DoctorSchedule'
 import './App.css'
 
 const EMPTY_VITALS = {
@@ -227,6 +228,9 @@ const handleLogin = async (e) => {
 // =========================
 
   if (currentUser === 'doctor') {
+  if (currentPage === 'doctor-schedule') {
+    return <DoctorSchedule user={loggedInUser} onBack={() => setCurrentPage('dashboard')} />
+  }
   if (currentPage === 'clinical-support') {
     return <ClinicalSupport user={loggedInUser} visit={selectedVisit} onBack={() => setCurrentPage('doctor-queue')} />
   }
@@ -236,6 +240,7 @@ const handleLogin = async (e) => {
   if (currentPage === 'doctor-appointments') {
   return (
     <DoctorAppointments
+      user={loggedInUser}
       onBack={() => setCurrentPage('dashboard')}
       onViewPatient={() => setCurrentPage('patient-detail')}
     />
@@ -289,6 +294,7 @@ const handleLogin = async (e) => {
       onViewAlerts={() => setCurrentPage('alerts')}
       onViewAppointments={() => setCurrentPage('doctor-appointments')}
       onViewQueue={() => setCurrentPage('doctor-queue')}
+      onViewSchedule={() => setCurrentPage('doctor-schedule')}
       onLogout={() => {
         localStorage.removeItem('cre_hint_session')
         setCurrentUser(null)

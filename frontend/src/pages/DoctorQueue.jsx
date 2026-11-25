@@ -226,7 +226,6 @@ function DoctorQueue({ user, onBack, onOpenSupport }) {
           ))}
         </section>
 
-        {/* Modal: Result Form */}
         {selected && (
           <div className="modal-backdrop" onClick={() => setSelected(null)}>
             <form

@@ -2,9 +2,6 @@ import { useEffect, useState } from 'react'
 import {
   ArrowLeftIcon,
   SparklesIcon,
-  CheckCircleIcon,
-  AlertTriangleIcon,
-  FileTextIcon,
   RefreshCwIcon
 } from '../components/Icons'
 
@@ -210,7 +207,6 @@ function ClinicalSupport({ user, visit, onBack }) {
           </div>
         )}
 
-        {/* Section 1: Hospital Data */}
         <section className="feature-card">
           <div className="section-title">
             <div>
@@ -259,7 +255,6 @@ function ClinicalSupport({ user, visit, onBack }) {
           )}
         </section>
 
-        {/* Section 2: AI-CDSS Analysis */}
         <section className="feature-card">
           <div className="section-title">
             <div>
@@ -305,7 +300,6 @@ function ClinicalSupport({ user, visit, onBack }) {
                 {ai.missing_data}
               </div>
 
-              {/* Review Actions */}
               <div
                 style={{
                   background: 'var(--slate-50)',
@@ -408,7 +402,6 @@ function ClinicalSupport({ user, visit, onBack }) {
           )}
         </section>
 
-        {/* Section 3: Draft Editor & Templates */}
         <section className="feature-card">
           <div className="section-title">
             <div>
@@ -417,7 +410,6 @@ function ClinicalSupport({ user, visit, onBack }) {
             </div>
           </div>
 
-          {/* Template row */}
           {templates.length > 0 && (
             <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--slate-50)', borderRadius: 'var(--radius-lg)' }}>
               <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--slate-700)', display: 'block', marginBottom: '8px' }}>
@@ -546,7 +538,6 @@ function ClinicalSupport({ user, visit, onBack }) {
             </button>
           </div>
 
-          {/* Versions History */}
           {data.versions?.length > 0 && (
             <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px dashed var(--slate-200)' }}>
               <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--slate-600)', display: 'block', marginBottom: '8px' }}>

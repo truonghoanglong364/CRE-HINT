@@ -1,4 +1,5 @@
 const path = require('path')
+const crypto = require('crypto')
 const express = require('express')
 const cors = require('cors')
 const bcrypt = require('bcryptjs')
@@ -294,7 +295,9 @@ app.get('/api/visits/queue', authenticateToken, allowRoles('doctor', 'receptioni
     WHERE visits.visit_date = ?
     ORDER BY CASE visits.status
       WHEN 'in_progress' THEN 1 WHEN 'called' THEN 2 WHEN 'waiting' THEN 3
-      WHEN 'registered' THEN 4 ELSE 5 END, visits.queue_number, visits.id
+      WHEN 'registered' THEN 4 ELSE 5 END,
+      CASE visits.priority WHEN 'emergency' THEN 1 WHEN 'urgent' THEN 2 ELSE 3 END,
+      visits.queue_number, visits.id
   `).all(date)
   const visits = await Promise.all(rows.map((v) => visitDetails(v)))
   res.json({ visits, date })
@@ -311,7 +314,8 @@ app.get('/api/visits/:id/clinical-support', authenticateToken, allowRoles('docto
   const hospitalData = await db.prepare('SELECT * FROM hospital_data WHERE visit_id = ? ORDER BY id DESC LIMIT 1').get(visit.id)
   const aiSupport = await db.prepare('SELECT * FROM ai_support WHERE visit_id = ? ORDER BY id DESC LIMIT 1').get(visit.id)
   const versions = await db.prepare('SELECT * FROM visit_versions WHERE visit_id = ? ORDER BY version_no DESC').all(visit.id)
-  res.json({ visit, hospitalData, aiSupport, versions })
+  const labOrders = await db.prepare('SELECT * FROM lab_orders WHERE visit_id = ? ORDER BY ordered_at DESC').all(visit.id)
+  res.json({ visit, hospitalData, aiSupport, versions, labOrders })
 })
 
 app.post('/api/visits/:id/mock-hospital-data', authenticateToken, allowRoles('doctor'), async (req, res) => {
@@ -539,6 +543,240 @@ app.get('/api/stats/doctor', authenticateToken, allowRoles('doctor'), async (req
     console.error(error)
     res.status(500).json({ message: 'Không thể tải thống kê!' })
   }
+})
+
+// =========================
+// LỊCH LÀM VIỆC BÁC SĨ
+// =========================
+
+app.get('/api/doctor-schedules', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const schedules = await db.prepare('SELECT * FROM doctor_schedules WHERE doctor_id = ? ORDER BY day_of_week, start_time').all(req.user.id)
+  const overrides = await db.prepare('SELECT * FROM schedule_overrides WHERE doctor_id = ? AND override_date >= date("now") ORDER BY override_date').all(req.user.id)
+  res.json({ schedules, overrides })
+})
+
+app.post('/api/doctor-schedules', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const { dayOfWeek, startTime, endTime, maxPatients } = req.body
+  if (dayOfWeek == null || !startTime || !endTime) return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin!' })
+  const existing = await db.prepare('SELECT id FROM doctor_schedules WHERE doctor_id = ? AND day_of_week = ?').get(req.user.id, dayOfWeek)
+  if (existing) {
+    await db.prepare('UPDATE doctor_schedules SET start_time = ?, end_time = ?, max_patients = ?, is_active = 1 WHERE id = ?').run(startTime, endTime, maxPatients || 20, existing.id)
+  } else {
+    await db.prepare('INSERT INTO doctor_schedules (doctor_id, day_of_week, start_time, end_time, max_patients) VALUES (?, ?, ?, ?, ?)').run(req.user.id, dayOfWeek, startTime, endTime, maxPatients || 20)
+  }
+  const schedules = await db.prepare('SELECT * FROM doctor_schedules WHERE doctor_id = ? ORDER BY day_of_week, start_time').all(req.user.id)
+  res.json({ schedules })
+})
+
+app.put('/api/doctor-schedules/:id', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const { startTime, endTime, maxPatients, isActive } = req.body
+  await db.prepare('UPDATE doctor_schedules SET start_time = ?, end_time = ?, max_patients = ?, is_active = ? WHERE id = ? AND doctor_id = ?').run(startTime, endTime, maxPatients || 20, isActive ? 1 : 0, req.params.id, req.user.id)
+  const schedules = await db.prepare('SELECT * FROM doctor_schedules WHERE doctor_id = ? ORDER BY day_of_week, start_time').all(req.user.id)
+  res.json({ schedules })
+})
+
+app.delete('/api/doctor-schedules/:id', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  await db.prepare('DELETE FROM doctor_schedules WHERE id = ? AND doctor_id = ?').run(req.params.id, req.user.id)
+  res.json({ ok: true })
+})
+
+app.post('/api/schedule-overrides', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const { overrideDate, isAvailable, reason } = req.body
+  if (!overrideDate) return res.status(400).json({ message: 'Vui lòng nhập ngày!' })
+  const existing = await db.prepare('SELECT id FROM schedule_overrides WHERE doctor_id = ? AND override_date = ?').get(req.user.id, overrideDate)
+  if (existing) {
+    await db.prepare('UPDATE schedule_overrides SET is_available = ?, reason = ? WHERE id = ?').run(isAvailable ? 1 : 0, reason || null, existing.id)
+  } else {
+    await db.prepare('INSERT INTO schedule_overrides (doctor_id, override_date, is_available, reason) VALUES (?, ?, ?, ?)').run(req.user.id, overrideDate, isAvailable ? 1 : 0, reason || null)
+  }
+  const overrides = await db.prepare('SELECT * FROM schedule_overrides WHERE doctor_id = ? AND override_date >= date("now") ORDER BY override_date').all(req.user.id)
+  res.json({ overrides })
+})
+
+app.delete('/api/schedule-overrides/:id', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  await db.prepare('DELETE FROM schedule_overrides WHERE id = ? AND doctor_id = ?').run(req.params.id, req.user.id)
+  res.json({ ok: true })
+})
+
+// Public: check doctor availability for a date
+app.get('/api/doctor-availability', authenticateToken, async (req, res) => {
+  const { doctorId, date } = req.query
+  if (!date) return res.status(400).json({ message: 'Vui lòng chọn ngày!' })
+  const dayOfWeek = new Date(date).getDay()
+  const override = doctorId
+    ? await db.prepare('SELECT * FROM schedule_overrides WHERE doctor_id = ? AND override_date = ?').get(doctorId, date)
+    : null
+  if (override && !override.is_available) return res.json({ available: false, reason: override.reason || 'Bác sĩ nghỉ' })
+  const schedule = doctorId
+    ? await db.prepare('SELECT * FROM doctor_schedules WHERE doctor_id = ? AND day_of_week = ? AND is_active = 1').get(doctorId, dayOfWeek)
+    : null
+  if (doctorId && !schedule && !override) return res.json({ available: false, reason: 'Bác sĩ không có lịch khám ngày này' })
+  const booked = doctorId
+    ? (await db.prepare("SELECT COUNT(*) AS count FROM visits WHERE doctor_id = ? AND visit_date = ? AND status != 'absent'").get(doctorId, date)).count
+    : 0
+  res.json({ available: true, schedule, booked, remaining: schedule ? schedule.max_patients - booked : null })
+})
+
+// =========================
+// PHÂN LOẠI ƯU TIÊN (TRIAGE)
+// =========================
+
+app.put('/api/visits/:id/priority', authenticateToken, allowRoles('doctor', 'receptionist'), async (req, res) => {
+  const { priority } = req.body
+  if (!['emergency', 'urgent', 'normal'].includes(priority)) return res.status(400).json({ message: 'Mức ưu tiên không hợp lệ!' })
+  const visit = await db.prepare('SELECT * FROM visits WHERE id = ?').get(req.params.id)
+  if (!visit) return res.status(404).json({ message: 'Không tìm thấy lượt khám!' })
+  await db.prepare('UPDATE visits SET priority = ? WHERE id = ?').run(priority, visit.id)
+  if (priority === 'emergency') {
+    await addNotification(visit.patient_id, 'Lượt khám được ưu tiên', 'Lượt khám của bạn đã được phân loại cấp cứu và sẽ được xử lý ưu tiên.', 'urgent')
+  }
+  const updated = await db.prepare('SELECT * FROM visits WHERE id = ?').get(visit.id)
+  res.json({ visit: await visitDetails(updated) })
+})
+
+// =========================
+// ICD-10
+// =========================
+
+app.get('/api/icd10', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const q = req.query.q || ''
+  const category = req.query.category || ''
+  let codes
+  if (q) {
+    const pattern = `%${q}%`
+    codes = await db.prepare('SELECT * FROM icd10_codes WHERE code LIKE ? OR description_vi LIKE ? OR description_en LIKE ? ORDER BY code LIMIT 20').all(pattern, pattern, pattern)
+  } else if (category) {
+    codes = await db.prepare('SELECT * FROM icd10_codes WHERE category = ? ORDER BY code').all(category)
+  } else {
+    codes = await db.prepare('SELECT * FROM icd10_codes ORDER BY code').all()
+  }
+  res.json({ codes })
+})
+
+app.put('/api/visits/:id/diagnosis', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const { icdCode, icdDescription } = req.body
+  const visit = await db.prepare('SELECT * FROM visits WHERE id = ?').get(req.params.id)
+  if (!visit) return res.status(404).json({ message: 'Không tìm thấy lượt khám!' })
+  await db.prepare('UPDATE visits SET icd_code = ?, icd_description = ? WHERE id = ?').run(icdCode || null, icdDescription || null, visit.id)
+  const updated = await db.prepare('SELECT * FROM visits WHERE id = ?').get(visit.id)
+  res.json({ visit: updated })
+})
+
+// =========================
+// SOAP NOTES
+// =========================
+
+app.put('/api/visits/:id/soap', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const { subjective, objective, assessment, plan } = req.body
+  const visit = await db.prepare('SELECT * FROM visits WHERE id = ?').get(req.params.id)
+  if (!visit) return res.status(404).json({ message: 'Không tìm thấy lượt khám!' })
+  await db.prepare('UPDATE visits SET soap_subjective = ?, soap_objective = ?, soap_assessment = ?, soap_plan = ? WHERE id = ?').run(subjective || null, objective || null, assessment || null, plan || null, visit.id)
+  const updated = await db.prepare('SELECT * FROM visits WHERE id = ?').get(visit.id)
+  res.json({ visit: updated })
+})
+
+// =========================
+// CHỈ ĐỊNH XÉT NGHIỆM
+// =========================
+
+app.get('/api/visits/:id/lab-orders', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const orders = await db.prepare('SELECT lab_orders.*, users.full_name AS ordered_by_name FROM lab_orders LEFT JOIN users ON users.id = lab_orders.ordered_by WHERE visit_id = ? ORDER BY ordered_at DESC').all(req.params.id)
+  res.json({ orders })
+})
+
+app.post('/api/visits/:id/lab-orders', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const visit = await db.prepare('SELECT * FROM visits WHERE id = ?').get(req.params.id)
+  if (!visit) return res.status(404).json({ message: 'Không tìm thấy lượt khám!' })
+  const { testName, testCode, urgency, notes } = req.body
+  if (!testName) return res.status(400).json({ message: 'Vui lòng nhập tên xét nghiệm!' })
+  const result = await db.prepare('INSERT INTO lab_orders (visit_id, test_name, test_code, urgency, notes, ordered_by) VALUES (?, ?, ?, ?, ?, ?)').run(visit.id, testName, testCode || null, urgency || 'routine', notes || null, req.user.id)
+  const order = await db.prepare('SELECT * FROM lab_orders WHERE id = ?').get(result.lastInsertRowid)
+  res.status(201).json({ order })
+})
+
+app.put('/api/lab-orders/:id', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const { status, resultText } = req.body
+  const updates = []
+  const params = []
+  if (status) { updates.push('status = ?'); params.push(status) }
+  if (resultText !== undefined) { updates.push('result_text = ?'); params.push(resultText) }
+  if (status === 'completed') { updates.push('completed_at = CURRENT_TIMESTAMP') }
+  if (updates.length === 0) return res.status(400).json({ message: 'Không có gì để cập nhật!' })
+  params.push(req.params.id)
+  await db.prepare(`UPDATE lab_orders SET ${updates.join(', ')} WHERE id = ?`).run(...params)
+  const order = await db.prepare('SELECT * FROM lab_orders WHERE id = ?').get(req.params.id)
+  res.json({ order })
+})
+
+app.delete('/api/lab-orders/:id', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  await db.prepare("DELETE FROM lab_orders WHERE id = ? AND status = 'ordered'").run(req.params.id)
+  res.json({ ok: true })
+})
+
+// =========================
+// KIỂM TRA TƯƠNG TÁC THUỐC
+// =========================
+
+app.post('/api/drug-interactions/check', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const { drugs } = req.body
+  if (!drugs || !Array.isArray(drugs) || drugs.length < 2) return res.json({ interactions: [] })
+  const normalized = drugs.map((d) => d.trim().toLowerCase())
+  const allInteractions = await db.prepare('SELECT * FROM drug_interactions').all()
+  const found = []
+  for (const interaction of allInteractions) {
+    const a = interaction.drug_a.toLowerCase()
+    const b = interaction.drug_b.toLowerCase()
+    for (let i = 0; i < normalized.length; i++) {
+      for (let j = i + 1; j < normalized.length; j++) {
+        if ((normalized[i].includes(a) || a.includes(normalized[i])) && (normalized[j].includes(b) || b.includes(normalized[j]))) {
+          found.push(interaction)
+        } else if ((normalized[j].includes(a) || a.includes(normalized[j])) && (normalized[i].includes(b) || b.includes(normalized[i]))) {
+          found.push(interaction)
+        }
+      }
+    }
+  }
+  res.json({ interactions: found })
+})
+
+// =========================
+// CHỮ KÝ SỐ
+// =========================
+
+app.post('/api/visits/:id/sign', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const visit = await db.prepare('SELECT * FROM visits WHERE id = ?').get(req.params.id)
+  if (!visit) return res.status(404).json({ message: 'Không tìm thấy lượt khám!' })
+  if (visit.result_status !== 'published') return res.status(400).json({ message: 'Chỉ có thể ký kết quả đã công bố!' })
+  const { password } = req.body
+  if (!password) return res.status(400).json({ message: 'Vui lòng nhập mật khẩu để xác nhận!' })
+  const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id)
+  const passwordCorrect = await bcrypt.compare(password, user.password)
+  if (!passwordCorrect) return res.status(401).json({ message: 'Mật khẩu không đúng!' })
+
+  const content = [visit.exam_notes, visit.result_text, visit.prescription, visit.icd_code, visit.soap_subjective, visit.soap_objective, visit.soap_assessment, visit.soap_plan].filter(Boolean).join('|')
+  const hash = crypto.createHash('sha256').update(`${req.user.id}:${visit.id}:${content}:${Date.now()}`).digest('hex')
+  await db.prepare('UPDATE visits SET signed_at = CURRENT_TIMESTAMP, signature_hash = ? WHERE id = ?').run(hash, visit.id)
+  await addNotification(visit.patient_id, 'Kết quả khám đã được ký xác nhận', 'Bác sĩ đã ký xác nhận kết quả khám của bạn.', 'success')
+  const updated = await db.prepare('SELECT * FROM visits WHERE id = ?').get(visit.id)
+  res.json({ visit: updated })
+})
+
+// =========================
+// LỊCH TÁI KHÁM (DỮ LIỆU THẬT)
+// =========================
+
+app.get('/api/appointments', authenticateToken, allowRoles('doctor'), async (req, res) => {
+  const rows = await db.prepare(`
+    SELECT visits.*, users.full_name AS patient_name, patients.patient_code
+    FROM visits
+    JOIN users ON users.id = visits.patient_id
+    LEFT JOIN patients ON patients.user_id = visits.patient_id
+    WHERE (visits.doctor_id = ? OR visits.doctor_id IS NULL)
+      AND visits.status != 'absent'
+    ORDER BY visits.visit_date DESC, visits.id DESC
+    LIMIT 50
+  `).all(req.user.id)
+  res.json({ appointments: rows })
 })
 
 // =========================

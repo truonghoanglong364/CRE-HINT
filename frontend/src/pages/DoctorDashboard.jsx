@@ -18,6 +18,7 @@ function DoctorDashboard({
   onViewAlerts,
   onViewAppointments,
   onViewQueue,
+  onViewSchedule,
 }) {
   const [patients, setPatients] = useState([])
   const [loadingPatients, setLoadingPatients] = useState(true)
@@ -97,6 +98,10 @@ function DoctorDashboard({
           <button className="nav-item" onClick={onViewQueue}>
             <ClockIcon size={18} />
             <span>Hàng đợi tiếp nhận</span>
+          </button>
+          <button className="nav-item" onClick={onViewSchedule}>
+            <CalendarIcon size={18} />
+            <span>Lịch làm việc</span>
           </button>
         </nav>
 
